@@ -1,0 +1,55 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { cn } from "@/lib/utils";
+import {
+  LayoutDashboard,
+  Receipt,
+  CreditCard,
+  BarChart3,
+} from "lucide-react";
+
+const mobileNavItems = [
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/fees", label: "Fees", icon: Receipt },
+  { href: "/payments", label: "Payments", icon: CreditCard },
+  { href: "/reports", label: "Reports", icon: BarChart3 },
+];
+
+export function MobileTopBar() {
+  return (
+    <div className="lg:hidden flex h-14 items-center border-b px-4 bg-sidebar sticky top-0 z-40">
+      <h1 className="text-base font-semibold">Finance Portal</h1>
+    </div>
+  );
+}
+
+export function BottomNav() {
+  const pathname = usePathname();
+
+  return (
+    <nav className="lg:hidden fixed bottom-0 inset-x-0 border-t bg-sidebar z-40">
+      <div className="flex items-center justify-around py-2">
+        {mobileNavItems.map((item) => {
+          const isActive = pathname.startsWith(item.href);
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={cn(
+                "flex flex-col items-center gap-1 px-3 py-1 text-xs",
+                isActive
+                  ? "text-primary font-medium"
+                  : "text-muted-foreground"
+              )}
+            >
+              <item.icon className="h-5 w-5" />
+              {item.label}
+            </Link>
+          );
+        })}
+      </div>
+    </nav>
+  );
+}
