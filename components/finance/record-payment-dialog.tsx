@@ -19,6 +19,8 @@ import {
   Select, SelectTrigger, SelectValue, SelectContent, SelectGroup, SelectItem,
 } from "@/components/ui/select";
 import { financialApiFetch, ApiError } from "@/lib/api/client";
+import { useI18n } from "@/lib/i18n/locale-provider";
+import type { MessageKey } from "@/lib/i18n/locale-provider";
 import type { StudentSchedule, RecordPaymentInput, DiscountEligibility } from "@/lib/api/types";
 import { Plus, ChevronsUpDown } from "lucide-react";
 
@@ -32,9 +34,10 @@ export type StudentCandidate = {
 
 export const LEVEL_LABELS: Record<string, string> = { SECONDARY: "Secondary", INTERMEDIATE: "Intermediate" };
 export const GRADE_INT_LABELS: Record<number, string> = { 1: "First", 2: "Second", 3: "Third", 6: "Sixth", 7: "Seventh", 8: "Eighth", 9: "Ninth" };
+const LEVEL_KEYS: Record<string, MessageKey> = { SECONDARY: "fees.levelSECONDARY", INTERMEDIATE: "fees.levelINTERMEDIATE" };
 const METHODS = ["cash", "bankak", "fawry", "okash", "al_mashriq"] as const;
-const METHOD_LABELS: Record<string, string> = {
-  cash: "Cash", bankak: "Bankak", fawry: "Fawry", okash: "Okash", al_mashriq: "Al Mashriq",
+const METHOD_LABELS: Record<string, MessageKey> = {
+  cash: "payments.methodCash", bankak: "payments.methodBankak", fawry: "payments.methodFawry", okash: "payments.methodOkash", al_mashriq: "payments.methodAlMashriq",
 };
 
 type PayTarget = {
@@ -65,6 +68,7 @@ interface RecordPaymentDialogProps {
 
 export function RecordPaymentDialog({ onCreated, presetStudent, triggerLabel, open, onClose }: RecordPaymentDialogProps) {
   const { money } = useCurrency();
+  const { t } = useI18n();
   const [innerOpen, setInnerOpen] = useState(false);
   const isControlled = open !== undefined;
   const isOpen = isControlled ? (open as boolean) : innerOpen;
@@ -135,8 +139,7 @@ export function RecordPaymentDialog({ onCreated, presetStudent, triggerLabel, op
     try {
       const sched = await financialApiFetch<StudentSchedule>(`/fees/students/${id}/schedule`);
       setSchedule(sched);
-      // Default target: the current installment if still open, else the
-      // registration fee (when it is the target), else the first open
+      // Default target: the current installment if still open, else the      // registration fee (when it is the target), else the first open
       // installment, else the lump-sum balance. Amount pre-fills from the
       // target's outstanding and stays editable.
       const list = Array.isArray(sched.installments) ? sched.installments : [];
@@ -166,7 +169,7 @@ export function RecordPaymentDialog({ onCreated, presetStudent, triggerLabel, op
     } catch (e) {
       setError(e instanceof ApiError
         ? e.message
-        : "Could not load this student's schedule — you can still record a lump-sum amount below.");
+        : t("payModal.scheduleError"));
       setSchedule(null);
     } finally {
       setLoadingSchedule(false);
@@ -236,7 +239,8 @@ export function RecordPaymentDialog({ onCreated, presetStudent, triggerLabel, op
         installmentNo: i.no,
         outstanding: rem,
         discounted,
-        label: `Installment #${i.no} — ${money(i.amount)} (paid ${money(i.paid)}${discounted > 0 ? `, discount −${money(discounted)}` : ""})`,
+        label: t("payModal.instLabel", { no: String(i.no), amount: money(i.amount), paid: money(i.paid) }) +
+          (discounted > 0 ? t("payModal.discountSuffix", { amount: money(discounted) }) : ""),
       });
     }
     const regRem = Math.max(0, schedule.registrationFee - schedule.registrationPaid);
@@ -247,7 +251,7 @@ export function RecordPaymentDialog({ onCreated, presetStudent, triggerLabel, op
         installmentNo: null,
         outstanding: regRem,
         discounted: 0,
-        label: `Registration Fee — ${money(schedule.registrationFee)} (paid ${money(schedule.registrationPaid)})`,
+        label: t("payModal.regLabel", { amount: money(schedule.registrationFee), paid: money(schedule.registrationPaid) }),
       });
     }
     if (schedule.balance > 0) {
@@ -257,7 +261,7 @@ export function RecordPaymentDialog({ onCreated, presetStudent, triggerLabel, op
         installmentNo: null,
         outstanding: schedule.balance,
         discounted: 0,
-        label: `Lump-Sum (Full Year) — balance ${money(schedule.balance)}`,
+        label: t("payModal.lumpLabel", { amount: money(schedule.balance) }),
       });
     }
     return out;
@@ -324,22 +328,22 @@ export function RecordPaymentDialog({ onCreated, presetStudent, triggerLabel, op
   async function handleSave() {
     if (fallbackMode) {
       const n = parseFloat(amount);
-      if (!(n > 0)) { setError("Enter an amount."); return; }
+      if (!(n > 0)) { setError(t("payModal.enterAmount")); return; }
       setSaving(true); setError("");
       try {
         await postPayment([{ installmentNo: null, kind: "lump_sum", amount: n }]);
         setOpen(false); reset();
         await onCreated();
       } catch (e) {
-        setError(e instanceof ApiError ? e.message : "Could not record the payment — try again.");
+        setError(e instanceof ApiError ? e.message : t("payModal.saveError"));
       } finally { setSaving(false); }
       return;
     }
-    if (!selectedTarget) { setError("Select an installment to pay towards."); return; }
+    if (!selectedTarget) { setError(t("payModal.selectTarget")); return; }
     const n = parseFloat(amount);
-    if (!(n > 0)) { setError(`Enter an amount for ${selectedTarget.label}.`); return; }
+    if (!(n > 0)) { setError(t("payModal.enterAmountFor", { label: selectedTarget.label })); return; }
     if (n > selectedTarget.outstanding + 0.005) {
-      setError(`${selectedTarget.label}: ${money(n)} exceeds the outstanding ${money(selectedTarget.outstanding)}.`);
+      setError(t("payModal.exceeds", { label: selectedTarget.label, amount: money(n), outstanding: money(selectedTarget.outstanding) }));
       return;
     }
     setSaving(true); setError("");
@@ -352,7 +356,7 @@ export function RecordPaymentDialog({ onCreated, presetStudent, triggerLabel, op
       setOpen(false); reset();
       await onCreated();
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : "Could not record the payment — try again.");
+      setError(e instanceof ApiError ? e.message : t("payModal.saveError"));
     } finally { setSaving(false); }
   }
 
@@ -371,7 +375,7 @@ export function RecordPaymentDialog({ onCreated, presetStudent, triggerLabel, op
       setOpen(false); reset();
       await onCreated();
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : "Could not settle the balance — try again.");
+      setError(e instanceof ApiError ? e.message : t("payModal.payAllError"));
     } finally { setSaving(false); }
   }
 
@@ -379,26 +383,26 @@ export function RecordPaymentDialog({ onCreated, presetStudent, triggerLabel, op
     <>
       {!isControlled && (
         <Button size="sm" onClick={() => { reset(); setOpen(true); }}>
-          <Plus className="h-4 w-4 mr-1" />{triggerLabel ?? "Record Payment"}
+          <Plus className="h-4 w-4 mr-1" />{triggerLabel ?? t("payModal.trigger")}
         </Button>
       )}
       <Dialog open={isOpen} onOpenChange={(o) => { if (!o) { setOpen(false); reset(); } else setOpen(o); }}>
         <DialogContent className="max-w-lg">
-          <DialogHeader><DialogTitle>Record Payment</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("payModal.title")}</DialogTitle></DialogHeader>
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-2">
-              <Label htmlFor="pay-student">Student</Label>
+              <Label htmlFor="pay-student">{t("payModal.student")}</Label>
               {studentId ? (
                 <div className="flex items-center gap-2 rounded-md border p-2">
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-sm font-medium">{pickedLabel || studentName}</div>
                     <div className="text-xs text-muted-foreground tabular-nums">
-                      Linked · {studentId.slice(0, 8)}…
+                      {t("payModal.linked", { id: studentId.slice(0, 8) })}
                     </div>
                   </div>
                   {!presetStudent && (
                     <Button type="button" size="sm" variant="ghost" onClick={clearStudent}>
-                      Change
+                      {t("payModal.change")}
                     </Button>
                   )}
                 </div>
@@ -414,21 +418,21 @@ export function RecordPaymentDialog({ onCreated, presetStudent, triggerLabel, op
                       />
                     }
                   >
-                    <span className="truncate text-muted-foreground">Type student name or paste ID…</span>
+                    <span className="truncate text-muted-foreground">{t("payModal.searchPlaceholder")}</span>
                     <ChevronsUpDown />
                   </PopoverTrigger>
                   <PopoverContent className="w-[--anchor-width] p-0" align="start">
                     <Command shouldFilter={false}>
                       <CommandInput
-                        placeholder="Type student name or paste ID…"
+                        placeholder={t("payModal.searchPlaceholder")}
                         value={query}
                         onValueChange={(v) => { setQuery(v); search(v); }}
                       />
                       <CommandList>
                         <CommandEmpty>
                           {query.trim()
-                            ? `No students found for “${query.trim()}”.`
-                            : "Type to search students."}
+                            ? t("payModal.noResults", { query: query.trim() })
+                            : t("payModal.typeToSearch")}
                         </CommandEmpty>
                         <CommandGroup>
                           {candidates.map((c) => (
@@ -453,7 +457,7 @@ export function RecordPaymentDialog({ onCreated, presetStudent, triggerLabel, op
               )}
               {!pickerOpen && !studentId && query.trim() && (
                 <p className="text-xs text-destructive" role="alert">
-                  No student selected — pick a result from the list so the payment links to the right record.
+                  {t("payModal.noStudentSelected")}
                 </p>
               )}
             </div>
@@ -461,34 +465,34 @@ export function RecordPaymentDialog({ onCreated, presetStudent, triggerLabel, op
             {schedule && (
               <div className="flex flex-col gap-1 rounded-md border p-3 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Total Fee</span>
+                  <span className="text-muted-foreground">{t("payModal.fTotalFee")}</span>
                   <span className="font-medium tabular-nums">{money(schedule.totalFee)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Paid</span>
+                  <span className="text-muted-foreground">{t("payModal.fPaid")}</span>
                   <span className="tabular-nums">{money(schedule.totalPaid)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Balance</span>
+                  <span className="text-muted-foreground">{t("payModal.fBalance")}</span>
                   <span className="font-medium tabular-nums text-destructive">{money(schedule.balance)}</span>
                 </div>
                 {schedule.currentTarget && (
                   <>
                     <Separator />
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Current Target</span>
-                      <span>Installment #{schedule.currentTarget.no}</span>
+                      <span className="text-muted-foreground">{t("payModal.currentTarget")}</span>
+                      <span>{t("payModal.currentTargetInst", { no: String(schedule.currentTarget.no) })}</span>
                     </div>
                   </>
                 )}
                 {!schedule.assigned && (
-                  <p className="text-xs text-destructive pt-1">No fee structure assigned. Payment will auto-assign by level/grade.</p>
+                  <p className="text-xs text-destructive pt-1">{t("payModal.unassignedNote")}</p>
                 )}
               </div>
             )}
 
             {loadingSchedule && (
-              <div className="flex flex-col gap-2" aria-busy="true" aria-label="Loading schedule">
+              <div className="flex flex-col gap-2" aria-busy="true" aria-label={t("payModal.loadingAria")}>
                 <Skeleton className="h-9 w-full" />
                 <Skeleton className="h-9 w-full" />
               </div>
@@ -496,18 +500,23 @@ export function RecordPaymentDialog({ onCreated, presetStudent, triggerLabel, op
 
             {!loadingSchedule && schedule?.proposed && (
               <p className="text-xs text-muted-foreground">
-                Fee structure for {LEVEL_LABELS[schedule.educationLevel ?? ""] ?? schedule.educationLevel}
-                {schedule.grade != null ? ` · Grade ${GRADE_INT_LABELS[schedule.grade] ?? schedule.grade}` : ""}
-                {" "}will be assigned automatically on save.
+                {t("payModal.proposedNote", {
+                  target: [
+                    schedule.educationLevel
+                      ? (LEVEL_KEYS[schedule.educationLevel] ? t(LEVEL_KEYS[schedule.educationLevel]) : schedule.educationLevel)
+                      : "",
+                    schedule.grade != null ? t("ledger.gradeRow", { no: schedule.grade }) : "",
+                  ].filter(Boolean).join(" · "),
+                })}
               </p>
             )}
 
             {!loadingSchedule && schedule?.assigned && targets.length > 0 && (
               <div className="flex flex-col gap-2">
-                <Label htmlFor="pay-installment">Installment</Label>
+                <Label htmlFor="pay-installment">{t("payModal.installment")}</Label>
                 <Select value={targetKey} onValueChange={(v) => { if (v) selectTarget(v); }}>
                   <SelectTrigger id="pay-installment" className="w-full">
-                    <SelectValue placeholder="Select an installment…" />
+                    <SelectValue placeholder={t("payModal.selectInstallment")} />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectGroup>
@@ -517,7 +526,7 @@ export function RecordPaymentDialog({ onCreated, presetStudent, triggerLabel, op
                     </SelectGroup>
                   </SelectContent>
                 </Select>
-                <Label htmlFor="pay-amount">Amount</Label>
+                <Label htmlFor="pay-amount">{t("payModal.amount")}</Label>
                 <Input
                   id="pay-amount"
                   type="number"
@@ -527,34 +536,34 @@ export function RecordPaymentDialog({ onCreated, presetStudent, triggerLabel, op
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   onBlur={clampAmount}
-                  aria-label={selectedTarget ? `Amount for ${selectedTarget.label}, max ${selectedTarget.outstanding}` : "Amount"}
+                  aria-label={selectedTarget ? t("payModal.amountAria", { label: selectedTarget.label, max: String(selectedTarget.outstanding) }) : t("payModal.amount")}
                 />
                 {selectedTarget && (
                   <p className="text-xs text-muted-foreground tabular-nums">
-                    Outstanding {money(selectedTarget.outstanding)}
-                    {schedule.currentTarget?.no === selectedTarget.installmentNo && <span> • current target</span>}
+                    {t("payModal.outstanding", { amount: money(selectedTarget.outstanding) })}
+                    {schedule.currentTarget?.no === selectedTarget.installmentNo && <span>{t("payModal.currentTargetNote")}</span>}
                   </p>
                 )}
                 {selectedTarget && selectedTarget.discounted > 0 && (
-                  <p className="text-xs text-purple-600 tabular-nums">
-                    Already applied to this target: −{money(selectedTarget.discounted)} (consumed discount — see Discounts below for new applications)
+                  <p className="text-xs text-success tabular-nums">
+                    {t("payModal.consumedDiscount", { amount: money(selectedTarget.discounted) })}
                   </p>
                 )}
                 {schedule.balance > 0 && (
                   <Button type="button" size="sm" variant="outline" className="w-full" onClick={handlePayAll} disabled={!canPayAll}>
-                    {saving ? "Settling…" : `Pay All Outstanding — ${money(schedule.balance)}`}
+                    {saving ? t("payModal.settling") : t("payModal.payAll", { amount: money(schedule.balance) })}
                   </Button>
                 )}
               </div>
             )}
 
             {!loadingSchedule && schedule?.assigned && targets.length === 0 && (
-              <p className="text-sm text-green-700">Nothing outstanding — this student is paid in full.</p>
+              <p className="text-sm text-success">{t("payModal.paidInFull")}</p>
             )}
 
             {!loadingSchedule && schedule?.assigned && (loadingDiscounts || eligible.length > 0) && (
               <div className="flex flex-col gap-2 rounded-md border p-3">
-                <Label>Discounts</Label>
+                <Label>{t("payModal.discounts")}</Label>
                 {loadingDiscounts ? (
                   <Skeleton className="h-9 w-full" />
                 ) : (
@@ -564,13 +573,13 @@ export function RecordPaymentDialog({ onCreated, presetStudent, triggerLabel, op
                         <Checkbox
                           checked={discountIds.includes(e.id)}
                           onCheckedChange={() => toggleDiscount(e.id)}
-                          aria-label={`Apply ${e.label}`}
+                          aria-label={t("payModal.applyAria", { label: e.label })}
                         />
                         <span className="flex-1">
                           <span className="font-medium">{e.label}</span>
-                          <span className="text-muted-foreground"> — est. {e.valueType === "PERCENTAGE" ? `${e.value}%` : money(e.value)}</span>
+                          <span className="text-muted-foreground"> — {t("payModal.est")} {e.valueType === "PERCENTAGE" ? `${e.value}%` : money(e.value)}</span>
                           {e.sourceType === "FAMILY_CONDITION" && (
-                            <span className="text-muted-foreground"> • manual</span>
+                            <span className="text-muted-foreground">{t("payModal.manualSuffix")}</span>
                           )}
                         </span>
                         <span className="tabular-nums text-muted-foreground">−{money(estimatedReduction(e))}</span>
@@ -578,7 +587,7 @@ export function RecordPaymentDialog({ onCreated, presetStudent, triggerLabel, op
                     ))}
                     {selectedDiscounts.length > 0 && (
                       <p className="text-xs text-muted-foreground tabular-nums">
-                        Estimated reduction {money(estimatedTotal)} — the server applies the binding amount at save.
+                        {t("payModal.estimatedNote", { amount: money(estimatedTotal) })}
                       </p>
                     )}
                   </>
@@ -588,7 +597,7 @@ export function RecordPaymentDialog({ onCreated, presetStudent, triggerLabel, op
 
             {!loadingSchedule && fallbackMode && (
               <div className="flex flex-col gap-2">
-                <Label htmlFor="pay-amount-plain">Amount</Label>
+                <Label htmlFor="pay-amount-plain">{t("payModal.amount")}</Label>
                 <Input
                   id="pay-amount-plain"
                   type="number"
@@ -597,12 +606,12 @@ export function RecordPaymentDialog({ onCreated, presetStudent, triggerLabel, op
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                 />
-                <p className="text-xs text-muted-foreground">No fee structure assigned yet — this records a lump-sum and auto-assigns one.</p>
+                <p className="text-xs text-muted-foreground">{t("payModal.fallbackNote")}</p>
               </div>
             )}
 
             <div className="flex flex-col gap-2">
-              <Label htmlFor="pay-method">Method</Label>
+              <Label htmlFor="pay-method">{t("payModal.method")}</Label>
               <Select value={method} onValueChange={(v) => { if (v) setMethod(v); }}>
                 <SelectTrigger id="pay-method" className="w-full">
                   <SelectValue />
@@ -610,7 +619,7 @@ export function RecordPaymentDialog({ onCreated, presetStudent, triggerLabel, op
                 <SelectContent>
                   <SelectGroup>
                     {METHODS.map((m) => (
-                      <SelectItem key={m} value={m}>{METHOD_LABELS[m]}</SelectItem>
+                      <SelectItem key={m} value={m}>{t(METHOD_LABELS[m])}</SelectItem>
                     ))}
                   </SelectGroup>
                 </SelectContent>
@@ -619,15 +628,15 @@ export function RecordPaymentDialog({ onCreated, presetStudent, triggerLabel, op
 
             {needsRef && (
               <div className="flex flex-col gap-2">
-                <Label htmlFor="pay-ref">Transaction ID</Label>
-                <Input id="pay-ref" value={transactionId} onChange={(e) => setTransactionId(e.target.value)} placeholder="Bank / provider reference" />
+                <Label htmlFor="pay-ref">{t("payModal.transactionId")}</Label>
+                <Input id="pay-ref" value={transactionId} onChange={(e) => setTransactionId(e.target.value)} placeholder={t("payModal.refPlaceholder")} />
               </div>
             )}
 
             {error && <p className="text-sm text-destructive">{error}</p>}
 
             <Button onClick={handleSave} disabled={saving || !canSave}>
-              {saving ? "Recording..." : "Record Payment"}
+              {saving ? t("payModal.recording") : t("payModal.recordBtn")}
             </Button>
           </div>
         </DialogContent>

@@ -13,20 +13,22 @@ import {
 import { financialApiFetch, ApiError } from "@/lib/api/client";
 import type { DashboardStats, Position } from "@/lib/api/types";
 import { useFinanceRealtimeEvent } from "@/lib/realtime/socket";
+import { useI18n } from "@/lib/i18n/locale-provider";
 import {
   TrendingUp, TrendingDown, Wallet, GraduationCap, Users, ArrowRight,
 } from "lucide-react";
 
-function fmtAt(iso: string | null): string {
+function fmtAt(iso: string | null, locale: string): string {
   if (!iso) return "-";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "-";
-  return d.toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric", timeZone: "UTC" });
+  return d.toLocaleDateString(locale === "ar" ? "ar-u-nu-latn" : "en-GB", { month: "short", day: "2-digit", year: "numeric", timeZone: "UTC" });
 }
 
 export default function DashboardPage() {
   const router = useRouter();
   const { money } = useCurrency();
+  const { t, locale } = useI18n();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [positions, setPositions] = useState<Position[]>([]);
   const [loading, setLoading] = useState(true);
@@ -82,7 +84,7 @@ export default function DashboardPage() {
     return (
       <div className="text-center py-12 space-y-3">
         <p className="text-destructive text-sm">{error}</p>
-        <Button variant="outline" size="sm" onClick={load}>Retry</Button>
+        <Button variant="outline" size="sm" onClick={load}>{t("common.retry")}</Button>
       </div>
     );
   }
@@ -93,61 +95,60 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-baseline gap-2">
-        <h1 className="text-2xl font-bold">Financial Dashboard</h1>
+        <h1 className="text-2xl font-bold">{t("dashboard.title")}</h1>
         {stats.tenant?.name && (
           <span className="text-sm text-muted-foreground">· {stats.tenant.name}</span>
         )}
       </div>
       {error && <p className="text-sm text-destructive">{error}</p>}
       {staleBackend && (
-        <div className="rounded-md bg-amber-500/10 p-3 text-sm text-amber-700">
-          Outflows, headcount and activity need a restarted backend — this data is
-          partial. Rebuild + restart the backend, then reload this page.
+        <div className="rounded-md bg-warning-surface p-3 text-sm text-warning">
+          {t("dashboard.staleBackend")}
         </div>
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Collections</CardTitle>
-            <TrendingUp className="h-5 w-5 text-green-600" />
+            <CardTitle className="text-sm font-medium text-muted-foreground">{t("dashboard.totalCollections")}</CardTitle>
+            <TrendingUp className="h-5 w-5 text-success" />
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold">{money(stats.totalCollected)}</p>
             <p className="text-xs text-muted-foreground">
               {stats.collectionsChangePct == null
-                ? "vs last month: —"
-                : `${stats.collectionsChangePct >= 0 ? "+" : ""}${stats.collectionsChangePct}% vs last month`}
+                ? t("dashboard.vsLastMonthNone")
+                : t("dashboard.vsLastMonth", { pct: `${stats.collectionsChangePct >= 0 ? "+" : ""}${stats.collectionsChangePct}` })}
             </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Outflows</CardTitle>
-            <TrendingDown className="h-5 w-5 text-red-600" />
+            <CardTitle className="text-sm font-medium text-muted-foreground">{t("dashboard.totalOutflows")}</CardTitle>
+            <TrendingDown className="h-5 w-5 text-destructive" />
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold">{money(stats.outflows)}</p>
             <p className="text-xs text-muted-foreground">
-              Expenses: {money(stats.expenses)} · Payroll: {money(stats.payroll)}
+              {t("dashboard.outflowBreakdown", { expenses: money(stats.expenses), payroll: money(stats.payroll) })}
             </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Net Liquidity</CardTitle>
-            <Wallet className={`h-5 w-5 ${netPositive ? "text-green-600" : "text-red-600"}`} />
+            <CardTitle className="text-sm font-medium text-muted-foreground">{t("dashboard.netLiquidity")}</CardTitle>
+            <Wallet className={`h-5 w-5 ${netPositive ? "text-success" : "text-destructive"}`} />
           </CardHeader>
           <CardContent>
-            <p className={`text-2xl font-bold ${netPositive ? "text-green-600" : "text-red-600"}`}>
+            <p className={`text-2xl font-bold ${netPositive ? "text-success" : "text-destructive"}`}>
               {money(stats.netCashFlow)}
             </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Students</CardTitle>
-            <GraduationCap className="h-5 w-5 text-blue-600" />
+            <CardTitle className="text-sm font-medium text-muted-foreground">{t("dashboard.totalStudents")}</CardTitle>
+            <GraduationCap className="h-5 w-5 text-primary" />
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold">{stats.totalStudents}</p>
@@ -155,8 +156,8 @@ export default function DashboardPage() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Teachers</CardTitle>
-            <Users className="h-5 w-5 text-purple-600" />
+            <CardTitle className="text-sm font-medium text-muted-foreground">{t("dashboard.totalTeachers")}</CardTitle>
+            <Users className="h-5 w-5 text-primary" />
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold">{stats.totalTeachers}</p>
@@ -166,36 +167,36 @@ export default function DashboardPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         <Card className="lg:col-span-3">
-          <CardHeader><CardTitle>Recent Financial Activity</CardTitle></CardHeader>
+          <CardHeader><CardTitle>{t("dashboard.recentActivity")}</CardTitle></CardHeader>
           <CardContent className="p-0">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Title</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
-                  <TableHead>Method</TableHead>
-                  <TableHead>Date</TableHead>
+                  <TableHead>{t("dashboard.type")}</TableHead>
+                  <TableHead>{t("dashboard.subject")}</TableHead>
+                  <TableHead className="text-right">{t("dashboard.amount")}</TableHead>
+                  <TableHead>{t("dashboard.method")}</TableHead>
+                  <TableHead>{t("dashboard.date")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {stats.recentActivity.map((a, i) => (
                   <TableRow key={`${a.type}-${i}`}>
                     <TableCell>
-                      {a.type === "COLLECTION" && <Badge className="bg-green-600">COLLECTION</Badge>}
+                      {a.type === "COLLECTION" && <Badge variant="success">COLLECTION</Badge>}
                       {a.type === "EXPENSE" && <Badge variant="destructive">EXPENSE</Badge>}
-                      {a.type === "PAYROLL" && <Badge className="bg-blue-600">PAYROLL</Badge>}
+                      {a.type === "PAYROLL" && <Badge variant="info">PAYROLL</Badge>}
                     </TableCell>
                     <TableCell className="font-medium">{a.title}</TableCell>
-                    <TableCell className={`text-right font-medium ${a.amount < 0 ? "text-destructive" : "text-green-600"}`}>
+                    <TableCell className={`text-right font-medium ${a.amount < 0 ? "text-destructive" : "text-success"}`}>
                       {money(a.amount)}
                     </TableCell>
                     <TableCell><Badge variant="outline">{a.method}</Badge></TableCell>
-                    <TableCell className="whitespace-nowrap">{fmtAt(a.at)}</TableCell>
+                    <TableCell className="whitespace-nowrap">{fmtAt(a.at, locale)}</TableCell>
                   </TableRow>
                 ))}
                 {stats.recentActivity.length === 0 && (
-                  <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">No recent activity.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">{t("dashboard.noActivity")}</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
@@ -203,14 +204,14 @@ export default function DashboardPage() {
         </Card>
 
         <Card className="lg:col-span-2">
-          <CardHeader><CardTitle>Staff Positions &amp; Salary Structure</CardTitle></CardHeader>
+          <CardHeader><CardTitle>{t("dashboard.positionsCard")}</CardTitle></CardHeader>
           <CardContent className="p-0">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Position / Role</TableHead>
-                  <TableHead className="text-right">Base Salary</TableHead>
-                  <TableHead className="text-right">Staff</TableHead>
+                  <TableHead>{t("dashboard.positionRole")}</TableHead>
+                  <TableHead className="text-right">{t("dashboard.baseSalary")}</TableHead>
+                  <TableHead className="text-right">{t("dashboard.staffCount")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -222,13 +223,13 @@ export default function DashboardPage() {
                   </TableRow>
                 ))}
                 {positions.length === 0 && (
-                  <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground">No positions configured.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground">{t("dashboard.noPositions")}</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
             <div className="p-4">
               <Button variant="outline" size="sm" className="w-full" onClick={() => router.push("/payroll?tab=positions")}>
-                Manage Positions &amp; Payroll <ArrowRight className="h-3 w-3 ml-1" />
+                {t("dashboard.managePositions")} <ArrowRight className="h-3 w-3 ml-1" />
               </Button>
             </div>
           </CardContent>

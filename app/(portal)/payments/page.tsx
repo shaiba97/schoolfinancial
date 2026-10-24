@@ -18,20 +18,29 @@ import { financialApiFetch, ApiError } from "@/lib/api/client";
 import type { Payment } from "@/lib/api/types";
 import { useFinanceRealtimeEvent } from "@/lib/realtime/socket";
 import { RecordPaymentDialog, LEVEL_LABELS, GRADE_INT_LABELS } from "@/components/finance/record-payment-dialog";
+import { formatDate, formatDateTime } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n/locale-provider";
+import type { MessageKey } from "@/lib/i18n/locale-provider";
 import { CheckCircle, Printer, ChevronRight } from "lucide-react";
 
-const METHOD_LABELS: Record<string, string> = {
-  cash: "Cash", bankak: "Bankak", fawry: "Fawry", okash: "Okash", al_mashriq: "Al Mashriq",
+const METHOD_LABELS: Record<string, MessageKey> = {
+  cash: "payments.methodCash", bankak: "payments.methodBankak", fawry: "payments.methodFawry", okash: "payments.methodOkash", al_mashriq: "payments.methodAlMashriq",
 };
 
+function methodLabel(mt: string, t: (k: MessageKey) => string): string {
+  const key = METHOD_LABELS[mt];
+  return key ? t(key) : mt;
+}
+
 export default function PaymentsPage() {
+  const { t } = useI18n();
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Payments & Collections</h1>
+      <h1 className="text-2xl font-bold">{t("payments.title")}</h1>
       <Tabs defaultValue="all" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="all">All Payments</TabsTrigger>
-          <TabsTrigger value="verification">Verification Queue</TabsTrigger>
+          <TabsTrigger value="all">{t("payments.tabAll")}</TabsTrigger>
+          <TabsTrigger value="verification">{t("payments.tabVerification")}</TabsTrigger>
         </TabsList>
         <TabsContent value="all"><AllPaymentsTab /></TabsContent>
         <TabsContent value="verification"><VerificationTab /></TabsContent>
@@ -45,27 +54,25 @@ export default function PaymentsPage() {
 // ---------------------------------------------------------------------------
 
 function StatusBadge({ status, daysLate }: { status?: string; daysLate?: number }) {
-  if (status === "paid_in_full") return <Badge className="bg-green-600 hover:bg-green-700 text-white">Paid in Full</Badge>;
-  if (status === "overdue") return <Badge variant="destructive">Overdue{daysLate ? ` (${daysLate}d late)` : ""}</Badge>;
-  if (status === "partial") return <Badge className="bg-yellow-500 hover:bg-yellow-600 text-white">Partial</Badge>;
-  return <Badge className="bg-blue-600 hover:bg-blue-700 text-white">On Track</Badge>;
-}
-
-function effectLabel(eff: NonNullable<Payment["installmentEffect"]>): string {
-  if (eff.isOpening && eff.isFinal) return "Paid in full";
-  if (eff.isFinal) return "Final payment";
-  if (eff.isOpening) return "Opening payment";
-  return "Part payment";
+  const { t } = useI18n();
+  if (status === "paid_in_full") return <Badge variant="success">{t("payments.statusPaidInFull")}</Badge>;
+  if (status === "overdue") return <Badge variant="destructive">{t("payments.statusOverdue")}{daysLate ? t("payments.daysLate", { days: String(daysLate) }) : ""}</Badge>;
+  if (status === "partial") return <Badge variant="warning">{t("payments.statusPartial")}</Badge>;
+  return <Badge variant="info">{t("payments.statusOnTrack")}</Badge>;
 }
 
 function EffectBadge({ eff }: { eff: NonNullable<Payment["installmentEffect"]> }) {
-  const label = effectLabel(eff);
+  const { t } = useI18n();
+  const label = eff.isOpening && eff.isFinal ? t("payments.effectFull")
+    : eff.isFinal ? t("payments.effectFinal")
+    : eff.isOpening ? t("payments.effectOpening")
+    : t("payments.effectPart");
   const cls =
-    label === "Paid in full" || label === "Final payment"
-      ? "bg-green-600 hover:bg-green-700 text-white"
-      : label === "Opening payment"
-        ? "bg-blue-600 hover:bg-blue-700 text-white"
-        : "bg-yellow-500 hover:bg-yellow-600 text-white";
+    eff.isOpening && eff.isFinal || eff.isFinal
+      ? "bg-success-surface text-success"
+      : eff.isOpening
+        ? "bg-info-surface text-info"
+        : "bg-warning-surface text-warning";
   return <Badge className={cls}>{label}</Badge>;
 }
 
@@ -84,13 +91,14 @@ function EffectBar({ before, after, total }: { before: number; after: number; to
 }
 
 function AllocationBadge({ kind, target, isFinal }: { kind?: string; target?: string; isFinal?: boolean }) {
+  const { t } = useI18n();
   const cls =
-    kind === "lump_sum" ? "bg-slate-800 hover:bg-slate-900 text-white"
-    : kind === "registration" ? "bg-purple-600 hover:bg-purple-700 text-white"
-    : "bg-blue-100 text-blue-800 border-blue-200";
+    kind === "lump_sum" ? "bg-primary text-primary-foreground"
+    : kind === "registration" ? "bg-secondary text-secondary-foreground"
+    : "bg-info-surface text-info";
   return (
     <Badge variant="outline" className={cls}>
-      {target ?? "Lump-Sum"}{isFinal ? " (Final)" : ""}
+      {target ?? t("payments.allocLumpSum")}{isFinal ? t("payments.allocFinal") : ""}
     </Badge>
   );
 }
@@ -102,12 +110,14 @@ function AllocationBadge({ kind, target, isFinal }: { kind?: string; target?: st
 
 function AllPaymentsTab() {
   const { money } = useCurrency();
+  const { t, locale } = useI18n();
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [receipt, setReceipt] = useState<Payment | null>(null);
   const [audit, setAudit] = useState<Payment | null>(null);
 
+  // t/locale are stable per language; the ledger loads once per mount.
   const load = useCallback(async () => {
     try {
       const data = await financialApiFetch<Payment[]>("/finance/payments");
@@ -116,6 +126,7 @@ function AllPaymentsTab() {
     } catch (e) {
       if (e instanceof ApiError) setError(e.message);
     } finally { setLoading(false); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => { load(); }, [load]);
@@ -131,24 +142,24 @@ function AllPaymentsTab() {
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle>Payments Ledger</CardTitle>
+        <CardTitle>{t("payments.ledgerCard")}</CardTitle>
         <RecordPaymentDialog onCreated={load} />
       </CardHeader>
       <CardContent>
         {error && <p className="mb-3 text-sm text-destructive">{error}</p>}
         {payments.length === 0 ? (
-          <div className="text-center py-12"><p className="text-sm text-muted-foreground">No payments recorded</p></div>
+          <div className="text-center py-12"><p className="text-sm text-muted-foreground">{t("payments.none")}</p></div>
         ) : (
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Student</TableHead>
-                <TableHead>Allocation</TableHead>
-                <TableHead>This Payment</TableHead>
-                <TableHead>Paid To Date</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Balance</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead>{t("payments.colStudent")}</TableHead>
+                <TableHead>{t("payments.colAllocation")}</TableHead>
+                <TableHead>{t("payments.colThisPayment")}</TableHead>
+                <TableHead>{t("payments.colPaidToDate")}</TableHead>
+                <TableHead>{t("payments.colStatus")}</TableHead>
+                <TableHead>{t("payments.colBalance")}</TableHead>
+                <TableHead className="text-right">{t("payments.colActions")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -161,16 +172,16 @@ function AllPaymentsTab() {
                       <div className="font-medium">{p.studentName}</div>
                       <div className="text-xs text-muted-foreground">
                         {[LEVEL_LABELS[p.educationLevel || ""], p.grade != null ? `Grade ${GRADE_INT_LABELS[p.grade] ?? p.grade}` : null, p.className]
-                          .filter(Boolean).join(" • ") || "â€”"}
+                          .filter(Boolean).join(" • ") || "—"}
                       </div>
                       <div className="text-xs text-muted-foreground tabular-nums">
-                        {new Date(p.paidAt).toLocaleDateString()}
+                        {formatDate(p.paidAt, locale)}
                       </div>
                     </TableCell>
                     <TableCell><AllocationBadge kind={p.allocationKind} target={p.allocationTarget} isFinal={p.isFinalPaymentOnInstallment} /></TableCell>
                     <TableCell>
-                      <div className="font-medium text-green-700 tabular-nums">{money(p.amount, p.currencyCode)}</div>
-                      <div className="text-xs text-muted-foreground">{METHOD_LABELS[p.method] ?? p.method}{p.reference ? ` • ${p.reference}` : ""}</div>
+                      <div className="font-medium text-success tabular-nums">{money(p.amount, p.currencyCode)}</div>
+                      <div className="text-xs text-muted-foreground">{methodLabel(p.method, t)}{p.reference ? ` • ${p.reference}` : ""}</div>
                       {eff && <div className="mt-1"><EffectBadge eff={eff} /></div>}
                     </TableCell>
                     <TableCell className="min-w-[140px]">
@@ -192,7 +203,7 @@ function AllPaymentsTab() {
                         <>
                           <Progress value={p.progress ?? 0} className="mb-1" />
                           <div className="text-xs text-muted-foreground tabular-nums">
-                            Total paid {money((p.totalFee ?? 0) - (p.balance ?? 0), p.currencyCode)} / {money(p.totalFee ?? 0, p.currencyCode)}
+                            {t("payments.totalPaidOf", { paid: money((p.totalFee ?? 0) - (p.balance ?? 0), p.currencyCode), total: money(p.totalFee ?? 0, p.currencyCode) })}
                           </div>
                         </>
                       )}
@@ -201,10 +212,10 @@ function AllPaymentsTab() {
                     <TableCell className="tabular-nums">{money(p.balance ?? 0, p.currencyCode)}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1">
-                        <Button variant="ghost" size="icon" onClick={() => setReceipt(p)} title="Print Receipt">
+                        <Button variant="ghost" size="icon" onClick={() => setReceipt(p)} title={t("payments.titlePrintReceipt")}>
                           <Printer className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => setAudit(p)} title="View Breakdown">
+                        <Button variant="ghost" size="icon" onClick={() => setAudit(p)} title={t("payments.titleBreakdown")}>
                           <ChevronRight className="h-4 w-4" />
                         </Button>
                       </div>
@@ -229,6 +240,7 @@ function AllPaymentsTab() {
 
 function ReceiptDialog({ payment, onClose }: { payment: Payment | null; onClose: () => void }) {
   const { money } = useCurrency();
+  const { t, locale } = useI18n();
   const [downloading, setDownloading] = useState(false);
   const [dlError, setDlError] = useState("");
 
@@ -251,30 +263,30 @@ function ReceiptDialog({ payment, onClose }: { payment: Payment | null; onClose:
       a.remove();
       URL.revokeObjectURL(url);
     } catch (e) {
-      setDlError(e instanceof Error ? e.message : "Receipt download failed");
+      setDlError(e instanceof Error ? e.message : t("payments.downloadError"));
     } finally { setDownloading(false); }
   }
 
   return (
     <Dialog open={!!payment} onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="max-w-sm">
-        <DialogHeader><DialogTitle>Payment Receipt</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{t("payments.receiptTitle")}</DialogTitle></DialogHeader>
         {payment && (
           <div className="space-y-2 text-sm" id="receipt-body">
-            <div className="flex justify-between"><span className="text-muted-foreground">Student</span><span className="font-medium">{payment.studentName}</span></div>
-            <div className="flex justify-between"><span className="text-muted-foreground">Payment Date</span><span>{new Date(payment.paidAt).toLocaleString()}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">{t("payments.fStudent")}</span><span className="font-medium">{payment.studentName}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">{t("payments.fPaymentDate")}</span><span>{formatDateTime(payment.paidAt, locale)}</span></div>
             {payment.createdAt && (
-              <div className="flex justify-between"><span className="text-muted-foreground">Receipt Issued</span><span>{new Date(payment.createdAt).toLocaleString()}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">{t("payments.fReceiptIssued")}</span><span>{formatDateTime(payment.createdAt, locale)}</span></div>
             )}
-            <div className="flex justify-between"><span className="text-muted-foreground">Allocation</span><span>{payment.allocationTarget}{payment.isFinalPaymentOnInstallment ? " (Final)" : ""}</span></div>
-            <div className="flex justify-between"><span className="text-muted-foreground">Method</span><span>{METHOD_LABELS[payment.method] ?? payment.method}</span></div>
-            {payment.reference && <div className="flex justify-between"><span className="text-muted-foreground">Ref</span><span>{payment.reference}</span></div>}
+            <div className="flex justify-between"><span className="text-muted-foreground">{t("payments.fAllocation")}</span><span>{payment.allocationTarget}{payment.isFinalPaymentOnInstallment ? t("payments.allocFinal") : ""}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">{t("payments.fMethod")}</span><span>{methodLabel(payment.method, t)}</span></div>
+            {payment.reference && <div className="flex justify-between"><span className="text-muted-foreground">{t("payments.fRef")}</span><span>{payment.reference}</span></div>}
             <div className="flex justify-between border-t pt-2 text-base font-semibold">
-              <span>Amount</span><span className="tabular-nums">{money(payment.amount, payment.currencyCode)}</span>
+              <span>{t("payments.fAmount")}</span><span className="tabular-nums">{money(payment.amount, payment.currencyCode)}</span>
             </div>
             {dlError && <p className="text-sm text-destructive">{dlError}</p>}
             <Button className="w-full mt-2" onClick={downloadReceipt} disabled={downloading}>
-              <Printer className="h-4 w-4 mr-1" />{downloading ? "Preparing PDF..." : "Print Receipt (PDF)"}
+              <Printer className="h-4 w-4 mr-1" />{downloading ? t("payments.preparing") : t("payments.btnPdf")}
             </Button>
           </div>
         )}
@@ -285,10 +297,11 @@ function ReceiptDialog({ payment, onClose }: { payment: Payment | null; onClose:
 
 function AuditDialog({ payment, onClose }: { payment: Payment | null; onClose: () => void }) {
   const { money } = useCurrency();
+  const { t } = useI18n();
   return (
     <Dialog open={!!payment} onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="max-w-md">
-        <DialogHeader><DialogTitle>Payment Breakdown</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{t("payments.auditTitle")}</DialogTitle></DialogHeader>
         {payment && (
           <div className="space-y-2 text-sm">
             <div className="font-medium">{payment.studentName}</div>
@@ -297,27 +310,27 @@ function AuditDialog({ payment, onClose }: { payment: Payment | null; onClose: (
                 .filter(Boolean).join(" • ")}
             </div>
             <div className="rounded-md border p-3 space-y-1">
-              <div className="flex justify-between"><span className="text-muted-foreground">Total Fee</span><span className="tabular-nums">{money(payment.totalFee ?? 0)}</span></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">This Payment</span><span className="tabular-nums text-green-700">{money(payment.amount)}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">{t("payments.fTotalFee")}</span><span className="tabular-nums">{money(payment.totalFee ?? 0)}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">{t("payments.fThisPayment")}</span><span className="tabular-nums text-success">{money(payment.amount)}</span></div>
               {payment.installmentEffect && payment.installmentProgress ? (
                 <>
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Effect</span>
+                    <span className="text-muted-foreground">{t("payments.fEffect")}</span>
                     <EffectBadge eff={payment.installmentEffect} />
                   </div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">Paid Before</span><span className="tabular-nums">{money(payment.installmentEffect.amountBefore)}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">Contributed</span><span className="tabular-nums text-green-700">+{money(payment.installmentEffect.contributed)}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">Installment Paid</span><span className="tabular-nums">{money(payment.installmentProgress.amountPaidToDate)} / {money(payment.installmentProgress.invoiceAmount)}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">{t("payments.fPaidBefore")}</span><span className="tabular-nums">{money(payment.installmentEffect.amountBefore)}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">{t("payments.fContributed")}</span><span className="tabular-nums text-success">+{money(payment.installmentEffect.contributed)}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">{t("payments.fInstallmentPaid")}</span><span className="tabular-nums">{money(payment.installmentProgress.amountPaidToDate)} / {money(payment.installmentProgress.invoiceAmount)}</span></div>
                 </>
               ) : payment.installmentNo != null ? (
-                <div className="flex justify-between"><span className="text-muted-foreground">Installment Paid</span><span className="tabular-nums">{money(payment.installmentPaid ?? 0)} / {money(payment.installmentAmount ?? 0)}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">{t("payments.fInstallmentPaid")}</span><span className="tabular-nums">{money(payment.installmentPaid ?? 0)} / {money(payment.installmentAmount ?? 0)}</span></div>
               ) : (
-                <div className="flex justify-between"><span className="text-muted-foreground">Total Paid To Date</span><span className="tabular-nums">{money((payment.totalFee ?? 0) - (payment.balance ?? 0))} / {money(payment.totalFee ?? 0)}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">{t("payments.fTotalPaidToDate")}</span><span className="tabular-nums">{money((payment.totalFee ?? 0) - (payment.balance ?? 0))} / {money(payment.totalFee ?? 0)}</span></div>
               )}
-              <div className="flex justify-between border-t pt-1"><span className="text-muted-foreground">Remaining Balance</span><span className="tabular-nums font-medium">{money(payment.balance ?? 0)}</span></div>
+              <div className="flex justify-between border-t pt-1"><span className="text-muted-foreground">{t("payments.fRemaining")}</span><span className="tabular-nums font-medium">{money(payment.balance ?? 0)}</span></div>
             </div>
             <div className="flex items-center justify-between">
-              <span>Status</span>
+              <span>{t("payments.fStatus")}</span>
               <StatusBadge status={payment.status} daysLate={payment.daysLate} />
             </div>
           </div>
@@ -333,6 +346,7 @@ function AuditDialog({ payment, onClose }: { payment: Payment | null; onClose: (
 
 function VerificationTab() {
   const { money } = useCurrency();
+  const { t, locale } = useI18n();
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -368,23 +382,23 @@ function VerificationTab() {
 
   return (
     <Card>
-      <CardHeader><CardTitle>Payment Verification Queue</CardTitle></CardHeader>
+      <CardHeader><CardTitle>{t("payments.verifCard")}</CardTitle></CardHeader>
       <CardContent>
         {payments.length === 0 ? (
-          <div className="text-center py-12"><p className="text-sm text-muted-foreground">No payments pending verification</p></div>
+          <div className="text-center py-12"><p className="text-sm text-muted-foreground">{t("payments.verifNone")}</p></div>
         ) : (
           <Table>
-            <TableHeader><TableRow><TableHead>Student</TableHead><TableHead>Amount</TableHead><TableHead>Method</TableHead><TableHead>Date</TableHead><TableHead className="text-right">Action</TableHead></TableRow></TableHeader>
+            <TableHeader><TableRow><TableHead>{t("payments.colStudent")}</TableHead><TableHead>{t("payments.colAmount")}</TableHead><TableHead>{t("payments.colMethod")}</TableHead><TableHead>{t("payments.colDate")}</TableHead><TableHead className="text-right">{t("payments.colAction")}</TableHead></TableRow></TableHeader>
             <TableBody>
               {payments.map((p) => (
                 <TableRow key={p.id}>
                   <TableCell className="font-medium">{p.studentName}</TableCell>
                   <TableCell>{money(p.amount, p.currencyCode)}</TableCell>
-                  <TableCell><Badge variant="outline">{METHOD_LABELS[p.method] ?? p.method}</Badge></TableCell>
-                  <TableCell>{new Date(p.paidAt).toLocaleDateString()}</TableCell>
+                  <TableCell><Badge variant="outline">{methodLabel(p.method, t)}</Badge></TableCell>
+                  <TableCell>{formatDate(p.paidAt, locale)}</TableCell>
                   <TableCell className="text-right">
                     <Button size="sm" variant="outline" onClick={() => verifyPayment(p.id)}>
-                      <CheckCircle className="h-4 w-4 mr-1" />Verify
+                      <CheckCircle className="h-4 w-4 mr-1" />{t("payments.verify")}
                     </Button>
                   </TableCell>
                 </TableRow>

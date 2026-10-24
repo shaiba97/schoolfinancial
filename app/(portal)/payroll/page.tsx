@@ -21,6 +21,8 @@ import {
 } from "@/components/ui/tooltip";
 import { Search, Plus, Pencil, RotateCcw, Trash2 } from "lucide-react";
 import { financialApiFetch, ApiError } from "@/lib/api/client";
+import { useI18n } from "@/lib/i18n/locale-provider";
+import { formatDate } from "@/lib/utils";
 import type {
   PayrollRegisterRow, Position, ShortageRates, DeductionRule, DeductionValueType,
 } from "@/lib/api/types";
@@ -38,6 +40,7 @@ export default function PayrollPage() {
 }
 
 function PayrollContent() {
+  const { t } = useI18n();
   const router = useRouter();
   const searchParams = useSearchParams();
   const param = searchParams.get("tab");
@@ -57,12 +60,12 @@ function PayrollContent() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Payroll</h1>
+      <h1 className="text-2xl font-bold">{t("payroll.title")}</h1>
       <Tabs value={tab} onValueChange={(v) => { if (v) changeTab(v); }} className="space-y-4">
         <TabsList>
-          <TabsTrigger value="disbursements">Monthly Pay Register</TabsTrigger>
-          <TabsTrigger value="positions">Positions</TabsTrigger>
-          <TabsTrigger value="deductions">Deduction Rules</TabsTrigger>
+          <TabsTrigger value="disbursements">{t("payroll.tabRegister")}</TabsTrigger>
+          <TabsTrigger value="positions">{t("payroll.tabPositions")}</TabsTrigger>
+          <TabsTrigger value="deductions">{t("payroll.tabDeductions")}</TabsTrigger>
         </TabsList>
         <TabsContent value="disbursements"><DisbursementsTab /></TabsContent>
         <TabsContent value="positions"><PositionsTab /></TabsContent>
@@ -72,22 +75,28 @@ function PayrollContent() {
   );
 }
 
-const ErrorBlock = ({ message, onRetry }: { message: string; onRetry?: () => void }) => (
-  <div className="text-center py-12 space-y-3">
-    <p className="text-destructive text-sm">{message}</p>
-    {onRetry && <Button variant="outline" size="sm" onClick={onRetry}>Retry</Button>}
-  </div>
-);
+const ErrorBlock = ({ message, onRetry }: { message: string; onRetry?: () => void }) => {
+  const { t } = useI18n();
+  return (
+    <div className="text-center py-12 space-y-3">
+      <p className="text-destructive text-sm">{message}</p>
+      {onRetry && <Button variant="outline" size="sm" onClick={onRetry}>{t("common.retry")}</Button>}
+    </div>
+  );
+};
 
-function fmtDate(iso: string | null): string {
+function fmtDate(iso: string | null, locale: string): string {
   if (!iso) return "-";
   const d = new Date(iso.length === 10 ? `${iso}T00:00:00Z` : iso);
   if (Number.isNaN(d.getTime())) return "-";
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
+  return new Intl.DateTimeFormat(locale === "ar" ? "ar-u-nu-latn" : "en-GB", {
+    day: "2-digit", month: "short", year: "numeric", timeZone: "UTC",
+  }).format(d);
 }
 
 function DisbursementsTab() {
   const { money } = useCurrency();
+  const { t, locale } = useI18n();
   const [rows, setRows] = useState<PayrollRegisterRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -130,37 +139,37 @@ function DisbursementsTab() {
     <div className="space-y-4">
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
-          <CardHeader><CardTitle className="text-sm text-muted-foreground">Total Monthly Payroll{cycle ? ` · ${cycle}` : ""}</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-sm text-muted-foreground">{cycle ? t("payroll.totalMonthly") + t("payroll.cycleSuffix", { cycle }) : t("payroll.totalMonthly")}</CardTitle></CardHeader>
           <CardContent className="text-2xl font-bold">{money(total)}</CardContent>
         </Card>
         <Card>
-          <CardHeader><CardTitle className="text-sm text-muted-foreground">Paid This Month</CardTitle></CardHeader>
-          <CardContent className="text-2xl font-bold text-green-600">{money(paid)}</CardContent>
+          <CardHeader><CardTitle className="text-sm text-muted-foreground">{t("payroll.paidThisMonth")}</CardTitle></CardHeader>
+          <CardContent className="text-2xl font-bold text-success">{money(paid)}</CardContent>
         </Card>
         <Card>
-          <CardHeader><CardTitle className="text-sm text-muted-foreground">Pending Payouts</CardTitle></CardHeader>
-          <CardContent className="text-2xl font-bold text-amber-600">{money(total - paid)}</CardContent>
+          <CardHeader><CardTitle className="text-sm text-muted-foreground">{t("payroll.pendingPayouts")}</CardTitle></CardHeader>
+          <CardContent className="text-2xl font-bold text-warning">{money(total - paid)}</CardContent>
         </Card>
       </div>
 
       <div className="flex flex-wrap gap-2">
         <div className="relative flex-1 min-w-52">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input className="pl-9" placeholder="Search name or staff ID..." value={search} onChange={(e) => setSearch(e.target.value)} />
+          <Input className="pl-9" placeholder={t("payroll.searchPlaceholder")} value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
         <Select value={role} onValueChange={(v) => { if (v) setRole(v); }}>
-          <SelectTrigger className="w-44"><SelectValue placeholder="Role" /></SelectTrigger>
+          <SelectTrigger className="w-44"><SelectValue placeholder={t("payroll.role")} /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All roles</SelectItem>
+            <SelectItem value="all">{t("payroll.allRoles")}</SelectItem>
             {roles.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={status} onValueChange={(v) => { if (v) setStatus(v); }}>
-          <SelectTrigger className="w-36"><SelectValue placeholder="Status" /></SelectTrigger>
+          <SelectTrigger className="w-36"><SelectValue placeholder={t("payroll.status")} /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All statuses</SelectItem>
-            <SelectItem value="pending">Pending</SelectItem>
-            <SelectItem value="paid">Paid</SelectItem>
+            <SelectItem value="all">{t("payroll.allStatuses")}</SelectItem>
+            <SelectItem value="pending">{t("payroll.statusPending")}</SelectItem>
+            <SelectItem value="paid">{t("payroll.statusPaid")}</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -170,13 +179,13 @@ function DisbursementsTab() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Staff Member</TableHead>
-                <TableHead>Position Base Salary</TableHead>
-                <TableHead>Deductions</TableHead>
-                <TableHead>Net Payable</TableHead>
-                <TableHead>Last Paid</TableHead>
-                <TableHead>Next Eligible</TableHead>
-                <TableHead>Action</TableHead>
+                <TableHead>{t("payroll.colStaffMember")}</TableHead>
+                <TableHead>{t("payroll.colBaseSalary")}</TableHead>
+                <TableHead>{t("payroll.colDeductions")}</TableHead>
+                <TableHead>{t("payroll.colNetPayable")}</TableHead>
+                <TableHead>{t("payroll.colLastPaid")}</TableHead>
+                <TableHead>{t("payroll.colNextEligible")}</TableHead>
+                <TableHead>{t("payroll.colAction")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -190,7 +199,7 @@ function DisbursementsTab() {
                     {r.baseSalary > 0 ? (
                       money(r.baseSalary, r.currencyCode)
                     ) : (
-                      <span className="text-amber-600 text-sm">Set salary in Positions tab</span>
+                      <span className="text-warning text-sm">{t("payroll.setSalaryHint")}</span>
                     )}
                   </TableCell>
                   <TableCell>
@@ -205,8 +214,8 @@ function DisbursementsTab() {
                             }
                           />
                           <TooltipContent>
-                            {r.absentDays > 0 && <p>{r.absentDays} day{r.absentDays === 1 ? "" : "s"} absent</p>}
-                            {r.lateDays > 0 && <p>{r.lateDays} late arrival{r.lateDays === 1 ? "" : "s"}</p>}
+                            {r.absentDays > 0 && <p>{t(r.absentDays === 1 ? "payroll.absentDaysOne" : "payroll.absentDaysMany", { n: String(r.absentDays) })}</p>}
+                            {r.lateDays > 0 && <p>{t(r.lateDays === 1 ? "payroll.lateDaysOne" : "payroll.lateDaysMany", { n: String(r.lateDays) })}</p>}
                           </TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
@@ -215,26 +224,26 @@ function DisbursementsTab() {
                     )}
                   </TableCell>
                   <TableCell className="font-bold">{money(r.netPay, r.currencyCode)}</TableCell>
-                  <TableCell>{fmtDate(r.lastPaidAt)}</TableCell>
-                  <TableCell>{fmtDate(r.nextEligibleDate)}</TableCell>
+                  <TableCell>{fmtDate(r.lastPaidAt, locale)}</TableCell>
+                  <TableCell>{fmtDate(r.nextEligibleDate, locale)}</TableCell>
                   <TableCell>
                     {r.status === "paid" ? (
-                      <Badge className="bg-green-600">✓ Paid{r.cycleLabel ? ` · ${r.cycleLabel}` : ""}</Badge>
+                      <Badge variant="success">{r.cycleLabel ? t("payroll.paidBadge") + t("payroll.cycleSuffix", { cycle: r.cycleLabel }) : t("payroll.paidBadge")}</Badge>
                     ) : (
                       <Button
                         size="sm"
                         disabled={!r.payable}
-                        title={r.payable ? undefined : "Set salary in Positions tab"}
+                        title={r.payable ? undefined : t("payroll.setSalaryHint")}
                         onClick={() => setPaying(r)}
                       >
-                        Pay Salary
+                        {t("payroll.paySalary")}
                       </Button>
                     )}
                   </TableCell>
                 </TableRow>
               ))}
               {filtered.length === 0 && (
-                <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">No staff found.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">{t("payroll.noStaff")}</TableCell></TableRow>
               )}
             </TableBody>
           </Table>
@@ -248,6 +257,7 @@ function DisbursementsTab() {
 
 function PositionsTab() {
   const { money } = useCurrency();
+  const { t } = useI18n();
   const [positions, setPositions] = useState<Position[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -292,7 +302,7 @@ function PositionsTab() {
       {error && <p className="text-sm text-destructive">{error}</p>}
       <div className="flex justify-end">
         <Button onClick={() => { setEditing(null); setModalOpen(true); }}>
-          <Plus className="h-4 w-4 mr-1" /> Set Position Salary
+          <Plus className="h-4 w-4 mr-1" /> {t("payroll.setPositionSalary")}
         </Button>
       </div>
       <Card>
@@ -300,10 +310,10 @@ function PositionsTab() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Position Title</TableHead>
-                <TableHead>Assigned Base Salary</TableHead>
-                <TableHead>Assigned Staff Count</TableHead>
-                <TableHead>Actions</TableHead>
+                <TableHead>{t("payroll.colPositionTitle")}</TableHead>
+                <TableHead>{t("payroll.colAssignedBase")}</TableHead>
+                <TableHead>{t("payroll.colStaffCount")}</TableHead>
+                <TableHead>{t("payroll.colActions")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -315,7 +325,7 @@ function PositionsTab() {
                   <TableCell>
                     <div className="flex gap-2">
                       <Button size="sm" variant="outline" onClick={() => { setEditing(p); setModalOpen(true); }}>
-                        <Pencil className="h-3 w-3 mr-1" /> Edit Salary
+                        <Pencil className="h-3 w-3 mr-1" /> {t("payroll.editSalary")}
                       </Button>
                       <Button
                         size="sm"
@@ -324,14 +334,14 @@ function PositionsTab() {
                         onClick={() => resetSalary(p)}
                       >
                         <RotateCcw className="h-3 w-3 mr-1" />
-                        {resetting === p.id ? "Resetting…" : "Reset"}
+                        {resetting === p.id ? t("payroll.resetting") : t("payroll.reset")}
                       </Button>
                     </div>
                   </TableCell>
                 </TableRow>
               ))}
               {positions.filter((p) => p.isActive).length === 0 && (
-                <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground">No positions yet.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground">{t("payroll.noPositions")}</TableCell></TableRow>
               )}
             </TableBody>
           </Table>
@@ -350,6 +360,7 @@ function PositionsTab() {
 
 function DeductionsTab() {
   const { money } = useCurrency();
+  const { t } = useI18n();
   const [rules, setRules] = useState<DeductionRule[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -450,38 +461,38 @@ function DeductionsTab() {
       {error && <p className="text-sm text-destructive">{error}</p>}
 
       <Card>
-        <CardHeader><CardTitle>Deduction Rules</CardTitle></CardHeader>
+        <CardHeader><CardTitle>{t("payroll.deductionsCard")}</CardTitle></CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-wrap items-end gap-2">
             <div className="space-y-2">
-              <Label htmlFor="rule-name">Rule name</Label>
-              <Input id="rule-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Pension 5%" className="w-52" />
+              <Label htmlFor="rule-name">{t("payroll.ruleName")}</Label>
+              <Input id="rule-name" value={name} onChange={(e) => setName(e.target.value)} placeholder={t("payroll.rulePlaceholder")} className="w-52" />
             </div>
             <div className="space-y-2">
-              <Label>Type</Label>
+              <Label>{t("payroll.type")}</Label>
               <Select value={valueType} onValueChange={(v) => { if (v) setValueType(v as DeductionValueType); }}>
                 <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="FIXED_AMOUNT">Fixed amount</SelectItem>
-                  <SelectItem value="PERCENTAGE">Percentage</SelectItem>
+                  <SelectItem value="FIXED_AMOUNT">{t("payroll.typeFixed")}</SelectItem>
+                  <SelectItem value="PERCENTAGE">{t("payroll.typePercentage")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="rule-value">Value</Label>
+              <Label htmlFor="rule-value">{t("payroll.value")}</Label>
               <Input id="rule-value" type="number" min={0} value={value} onChange={(e) => setValue(e.target.value)} placeholder="0" className="w-32" />
             </div>
             <Button onClick={createRule} disabled={saving === "new"}>
-              <Plus className="h-4 w-4 mr-1" /> {saving === "new" ? "Adding…" : "Add Rule"}
+              <Plus className="h-4 w-4 mr-1" /> {saving === "new" ? t("payroll.adding") : t("payroll.addRule")}
             </Button>
           </div>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Value</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead>{t("payroll.colName")}</TableHead>
+                <TableHead>{t("payroll.colType")}</TableHead>
+                <TableHead>{t("payroll.colValue")}</TableHead>
+                <TableHead>{t("payroll.colStatus")}</TableHead>
                 <TableHead />
               </TableRow>
             </TableHeader>
@@ -489,15 +500,15 @@ function DeductionsTab() {
               {rules.map((r) => (
                 <TableRow key={r.id}>
                   <TableCell className="font-medium">{r.name}</TableCell>
-                  <TableCell>{r.valueType === "PERCENTAGE" ? "Percentage" : "Fixed amount"}</TableCell>
+                  <TableCell>{r.valueType === "PERCENTAGE" ? t("payroll.typePercentage") : t("payroll.typeFixed")}</TableCell>
                   <TableCell>{r.valueType === "PERCENTAGE" ? `${r.value}%` : money(r.value)}</TableCell>
                   <TableCell>
-                    <Badge variant={r.isActive ? "default" : "secondary"}>{r.isActive ? "Active" : "Inactive"}</Badge>
+                    <Badge variant={r.isActive ? "default" : "secondary"}>{r.isActive ? t("discounts.statusActive") : t("discounts.statusInactive")}</Badge>
                   </TableCell>
                   <TableCell>
                     <div className="flex gap-2">
                       <Button size="sm" variant="outline" disabled={saving === r.id} onClick={() => toggleRule(r)}>
-                        {r.isActive ? "Deactivate" : "Activate"}
+                        {r.isActive ? t("payroll.deactivate") : t("payroll.activate")}
                       </Button>
                       <Button size="sm" variant="ghost" disabled={saving === r.id} onClick={() => deleteRule(r)}>
                         <Trash2 className="h-3 w-3" />
@@ -507,7 +518,7 @@ function DeductionsTab() {
                 </TableRow>
               ))}
               {rules.length === 0 && (
-                <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">No deduction rules yet.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">{t("payroll.noRules")}</TableCell></TableRow>
               )}
             </TableBody>
           </Table>
@@ -515,11 +526,11 @@ function DeductionsTab() {
       </Card>
 
       <Card>
-        <CardHeader><CardTitle>Attendance Shortage Rules</CardTitle></CardHeader>
+        <CardHeader><CardTitle>{t("payroll.shortageCard")}</CardTitle></CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="rate-absent">Daily Absence Penalty</Label>
+              <Label htmlFor="rate-absent">{t("payroll.absentPenalty")}</Label>
               <Input
                 id="rate-absent"
                 type="number"
@@ -527,10 +538,10 @@ function DeductionsTab() {
                 value={rateDraft.absentDaily}
                 onChange={(e) => setRateDraft((d) => ({ ...d, absentDaily: e.target.value }))}
               />
-              <p className="text-xs text-muted-foreground">Deducted per unexcused absent day.</p>
+              <p className="text-xs text-muted-foreground">{t("payroll.absentPenaltyNote")}</p>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="rate-late">Late Arrival Penalty</Label>
+              <Label htmlFor="rate-late">{t("payroll.latePenalty")}</Label>
               <Input
                 id="rate-late"
                 type="number"
@@ -538,11 +549,11 @@ function DeductionsTab() {
                 value={rateDraft.lateRate}
                 onChange={(e) => setRateDraft((d) => ({ ...d, lateRate: e.target.value }))}
               />
-              <p className="text-xs text-muted-foreground">Deducted per late clock-in (applies once late arrivals are tracked).</p>
+              <p className="text-xs text-muted-foreground">{t("payroll.latePenaltyNote")}</p>
             </div>
           </div>
           <Button onClick={saveRates} disabled={saving === "rates"}>
-            {saving === "rates" ? "Saving…" : "Save Shortage Rules"}
+            {saving === "rates" ? t("common.saving") : t("payroll.saveShortage")}
           </Button>
         </CardContent>
       </Card>

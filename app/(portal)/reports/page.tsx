@@ -17,8 +17,24 @@ import {
 } from "@/components/ui/select";
 import { Download, Search } from "lucide-react";
 import { financialApiFetch } from "@/lib/api/client";
+import { useI18n } from "@/lib/i18n/locale-provider";
+import type { MessageKey } from "@/lib/i18n/locale-provider";
+import { formatDateTime } from "@/lib/utils";
 import type { LedgerRow, ReportSummary } from "@/lib/api/types";
 import { ExportReportModal } from "@/components/finance/export-report-modal";
+
+const METHOD_KEYS: Record<string, MessageKey> = {
+  cash: "payments.methodCash",
+  bankak: "payments.methodBankak",
+  fawry: "payments.methodFawry",
+  okash: "payments.methodOkash",
+  al_mashriq: "payments.methodAlMashriq",
+  CASH: "ledger.methodCash",
+  BANKAK: "ledger.methodBankak",
+  FAWRY: "ledger.methodFawry",
+  OKASH: "ledger.methodOkash",
+  AL_MASHRIQ: "ledger.methodAlMashriq",
+};
 
 type Preset = "today" | "week" | "month" | "custom";
 
@@ -56,6 +72,7 @@ export default function ReportsPage() {
 }
 
 function ReportsContent() {
+  const { t } = useI18n();
   const router = useRouter();
   const searchParams = useSearchParams();
   const param = searchParams.get("tab");
@@ -114,15 +131,15 @@ function ReportsContent() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-2xl font-bold">Financial Reports</h1>
+        <h1 className="text-2xl font-bold">{t("reports.title")}</h1>
         <div className="flex flex-wrap items-center gap-2">
           <Select value={preset} onValueChange={(v) => { if (v) changePreset(v); }}>
             <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="today">Today</SelectItem>
-              <SelectItem value="week">This Week</SelectItem>
-              <SelectItem value="month">This Month</SelectItem>
-              <SelectItem value="custom">Custom Range</SelectItem>
+              <SelectItem value="today">{t("reports.presetToday")}</SelectItem>
+              <SelectItem value="week">{t("reports.presetWeek")}</SelectItem>
+              <SelectItem value="month">{t("reports.presetMonth")}</SelectItem>
+              <SelectItem value="custom">{t("reports.presetCustom")}</SelectItem>
             </SelectContent>
           </Select>
           {preset === "custom" && (
@@ -132,15 +149,15 @@ function ReportsContent() {
             </>
           )}
           <Button size="sm" onClick={() => setExportOpen(true)}>
-            <Download className="h-4 w-4 mr-1" /> Export PDF / CSV
+            <Download className="h-4 w-4 mr-1" /> {t("reports.export")}
           </Button>
         </div>
       </div>
 
       <Tabs value={tab} onValueChange={(v) => { if (v) changeTab(v); }} className="space-y-4">
         <TabsList>
-          <TabsTrigger value="summary">Financial Summary</TabsTrigger>
-          <TabsTrigger value="ledger">Master Transaction Ledger</TabsTrigger>
+          <TabsTrigger value="summary">{t("reports.tabSummary")}</TabsTrigger>
+          <TabsTrigger value="ledger">{t("reports.tabLedger")}</TabsTrigger>
         </TabsList>
         <TabsContent value="summary"><SummaryTab summary={summary} /></TabsContent>
         <TabsContent value="ledger"><LedgerTab rows={rows} /></TabsContent>
@@ -159,6 +176,7 @@ function ReportsContent() {
 
 function SummaryTab({ summary }: { summary: ReportSummary | null }) {
   const { money } = useCurrency();
+  const { t } = useI18n();
   if (!summary) {
     return <div className="space-y-3">{[1, 2].map((i) => <Skeleton key={i} className="h-24 w-full" />)}</div>;
   }
@@ -166,45 +184,45 @@ function SummaryTab({ summary }: { summary: ReportSummary | null }) {
     <div className="space-y-4">
       <div className="grid gap-4 md:grid-cols-4">
         <Card>
-          <CardHeader><CardTitle className="text-sm text-muted-foreground">Total Collections</CardTitle></CardHeader>
-          <CardContent className="text-2xl font-bold text-green-600">{money(summary.collections)}</CardContent>
+          <CardHeader><CardTitle className="text-sm text-muted-foreground">{t("reports.totalCollections")}</CardTitle></CardHeader>
+          <CardContent className="text-2xl font-bold text-success">{money(summary.collections)}</CardContent>
         </Card>
         <Card>
-          <CardHeader><CardTitle className="text-sm text-muted-foreground">Total Expenses</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-sm text-muted-foreground">{t("reports.totalExpenses")}</CardTitle></CardHeader>
           <CardContent className="text-2xl font-bold text-destructive">{money(summary.expenses)}</CardContent>
         </Card>
         <Card>
-          <CardHeader><CardTitle className="text-sm text-muted-foreground">Total Discounts</CardTitle></CardHeader>
-          <CardContent className="text-2xl font-bold text-purple-600">{money(summary.discounts)}</CardContent>
+          <CardHeader><CardTitle className="text-sm text-muted-foreground">{t("reports.totalDiscounts")}</CardTitle></CardHeader>
+          <CardContent className="text-2xl font-bold text-secondary">{money(summary.discounts)}</CardContent>
         </Card>
         <Card>
-          <CardHeader><CardTitle className="text-sm text-muted-foreground">Net Cash Flow</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-sm text-muted-foreground">{t("reports.netCashFlow")}</CardTitle></CardHeader>
           <CardContent className="text-2xl font-bold">{money(summary.net)}</CardContent>
         </Card>
       </div>
       <Card>
-        <CardHeader><CardTitle>Payment Method Breakdown</CardTitle></CardHeader>
+        <CardHeader><CardTitle>{t("reports.methodBreakdown")}</CardTitle></CardHeader>
         <CardContent className="p-0">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Channel</TableHead>
-                <TableHead>Transactions</TableHead>
-                <TableHead>Total Revenue</TableHead>
-                <TableHead>% of Collections</TableHead>
+                <TableHead>{t("reports.colChannel")}</TableHead>
+                <TableHead>{t("reports.colTransactions")}</TableHead>
+                <TableHead>{t("reports.colTotalRevenue")}</TableHead>
+                <TableHead>{t("reports.colShare")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {summary.byMethod.map((m) => (
                 <TableRow key={m.method}>
-                  <TableCell><Badge variant="secondary">{m.method}</Badge></TableCell>
+                  <TableCell><Badge variant="secondary">{METHOD_KEYS[m.method] ? t(METHOD_KEYS[m.method]) : m.method}</Badge></TableCell>
                   <TableCell>{m.count}</TableCell>
-                  <TableCell className="text-green-600">{money(m.total)}</TableCell>
+                  <TableCell className="text-success">{money(m.total)}</TableCell>
                   <TableCell>{m.share}%</TableCell>
                 </TableRow>
               ))}
               {summary.byMethod.length === 0 && (
-                <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground">No collections in range.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground">{t("reports.noneInRange")}</TableCell></TableRow>
               )}
             </TableBody>
           </Table>
@@ -214,16 +232,9 @@ function SummaryTab({ summary }: { summary: ReportSummary | null }) {
   );
 }
 
-function fmtAt(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "-";
-  const date = d.toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric", timeZone: "UTC" });
-  const time = d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "UTC" });
-  return `${date} - ${time}`;
-}
-
 function LedgerTab({ rows }: { rows: LedgerRow[] }) {
   const { money } = useCurrency();
+  const { t, locale } = useI18n();
   const [type, setType] = useState("all");
   const [search, setSearch] = useState("");
 
@@ -242,19 +253,19 @@ function LedgerTab({ rows }: { rows: LedgerRow[] }) {
     <div className="space-y-4">
       <div className="flex flex-wrap gap-2">
         <Select value={type} onValueChange={(v) => { if (v) setType(v); }}>
-          <SelectTrigger className="w-52"><SelectValue placeholder="Type" /></SelectTrigger>
+          <SelectTrigger className="w-52"><SelectValue placeholder={t("reports.type")} /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Types</SelectItem>
-            <SelectItem value="collections">Collections (Income)</SelectItem>
-            <SelectItem value="expenses">Expenses / Payroll</SelectItem>
-            <SelectItem value="discounts">Discounts Granted</SelectItem>
+            <SelectItem value="all">{t("reports.allTypes")}</SelectItem>
+            <SelectItem value="collections">{t("reports.typeCollections")}</SelectItem>
+            <SelectItem value="expenses">{t("reports.typeExpenses")}</SelectItem>
+            <SelectItem value="discounts">{t("reports.typeDiscounts")}</SelectItem>
           </SelectContent>
         </Select>
         <div className="relative flex-1 min-w-52">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             className="pl-9"
-            placeholder="Search student, voucher, payee, staff..."
+            placeholder={t("reports.ledgerSearch")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -265,36 +276,37 @@ function LedgerTab({ rows }: { rows: LedgerRow[] }) {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Date &amp; Time</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead>Channel</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
-                <TableHead>Recorded By</TableHead>
+                <TableHead>{t("reports.colDateTime")}</TableHead>
+                <TableHead>{t("reports.colType")}</TableHead>
+                <TableHead>{t("reports.colDescription")}</TableHead>
+                <TableHead>{t("reports.colChannel")}</TableHead>
+                <TableHead className="text-right">{t("reports.colAmount")}</TableHead>
+                <TableHead>{t("reports.colRecordedBy")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filtered.map((r) => (
                 <TableRow key={r.id}>
-                  <TableCell className="whitespace-nowrap">{fmtAt(r.at)}</TableCell>
+                  <TableCell className="whitespace-nowrap">{formatDateTime(r.at, locale)}</TableCell>
                   <TableCell>
-                    {r.type === "COLLECTION" && <Badge className="bg-green-600">COLLECTION</Badge>}
-                    {(r.type === "EXPENSE" || r.type === "PAYROLL") && <Badge variant="destructive">{r.type}</Badge>}
-                    {r.type === "DISCOUNT" && <Badge className="bg-purple-600">DISCOUNT</Badge>}
+                    {r.type === "COLLECTION" && <Badge variant="success">COLLECTION</Badge>}
+                    {(r.type === "EXPENSE") && <Badge variant="destructive">{r.type}</Badge>}
+                    {r.type === "PAYROLL" && <Badge variant="info">PAYROLL</Badge>}
+                    {r.type === "DISCOUNT" && <Badge variant="secondary">DISCOUNT</Badge>}
                   </TableCell>
                   <TableCell>
                     <p className="font-medium">{r.title}</p>
                     {r.ref && <p className="text-xs text-muted-foreground">{r.ref}</p>}
                   </TableCell>
                   <TableCell><Badge variant="outline">{r.channel}</Badge></TableCell>
-                  <TableCell className={`text-right font-medium ${r.amount < 0 ? "text-destructive" : "text-green-600"}`}>
+                  <TableCell className={`text-right font-medium ${r.amount < 0 ? "text-destructive" : "text-success"}`}>
                     {money(r.amount)}
                   </TableCell>
                   <TableCell>{r.by}</TableCell>
                 </TableRow>
               ))}
               {filtered.length === 0 && (
-                <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground">No transactions in range.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground">{t("reports.noneTransactions")}</TableCell></TableRow>
               )}
             </TableBody>
           </Table>

@@ -16,45 +16,50 @@ import { AssignDiscountModal } from "@/components/finance/assign-discount-modal"
 import { SiblingGroupsDialog } from "@/components/finance/sibling-groups-dialog";
 import { RuleTemplateDialog } from "@/components/finance/rule-template-dialog";
 import { financialApiFetch, ApiError } from "@/lib/api/client";
+import { useI18n } from "@/lib/i18n/locale-provider";
+import type { MessageKey } from "@/lib/i18n/locale-provider";
 import type {
   AssignedDiscountRow, AssignedDiscountCategory, AssignedDiscountStatus,
   DiscountRuleRow, DiscountRuleCategory, TopperComputeResult,
 } from "@/lib/api/types";
 import { Plus, Trash2 } from "lucide-react";
 
-const CATEGORY_LABEL: Record<AssignedDiscountCategory | DiscountRuleCategory, string> = {
-  SIBLING: "Sibling / Family",
-  TOPPER: "Class Topper",
-  SPECIAL_DISCRETION: "Special Family Condition",
-  MANUAL: "Manual",
+const CATEGORY_KEYS: Record<AssignedDiscountCategory | DiscountRuleCategory, MessageKey> = {
+  SIBLING: "discounts.catSibling",
+  TOPPER: "discounts.catTopper",
+  SPECIAL_DISCRETION: "discounts.catSpecial",
+  MANUAL: "discounts.catManual",
 };
 
 const CATEGORY_TINT: Record<AssignedDiscountCategory | DiscountRuleCategory, string> = {
-  SIBLING: "border-blue-200 bg-blue-50 text-blue-700",
-  TOPPER: "border-purple-200 bg-purple-50 text-purple-700",
-  SPECIAL_DISCRETION: "border-amber-200 bg-amber-50 text-amber-700",
+  SIBLING: "border-transparent bg-info-surface text-info",
+  TOPPER: "border-transparent bg-secondary text-secondary-foreground",
+  SPECIAL_DISCRETION: "border-transparent bg-warning-surface text-warning",
   MANUAL: "",
 };
 
 function CategoryBadge({ category }: { category: AssignedDiscountCategory | DiscountRuleCategory }) {
+  const { t } = useI18n();
   return (
     <Badge variant="outline" className={CATEGORY_TINT[category]}>
-      {CATEGORY_LABEL[category]}
+      {t(CATEGORY_KEYS[category])}
     </Badge>
   );
 }
 
 function AssignedStatusBadge({ status }: { status: AssignedDiscountStatus }) {
-  if (status === "pending") return <Badge variant="secondary">Pending</Badge>;
-  if (status === "expired") return <Badge variant="outline">Expired</Badge>;
-  if (status === "rejected") return <Badge variant="destructive">Revoked</Badge>;
-  return <Badge>Active</Badge>;
+  const { t } = useI18n();
+  if (status === "pending") return <Badge variant="secondary">{t("discounts.statusPending")}</Badge>;
+  if (status === "expired") return <Badge variant="outline">{t("discounts.statusExpired")}</Badge>;
+  if (status === "rejected") return <Badge variant="destructive">{t("discounts.statusRevoked")}</Badge>;
+  return <Badge>{t("discounts.statusActive")}</Badge>;
 }
 
 export default function DiscountsPage() {
+  const { t } = useI18n();
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-2xl font-bold">Discounts & Scholarships</h1>
+      <h1 className="text-2xl font-bold">{t("discounts.title")}</h1>
       <Suspense fallback={<div className="flex flex-col gap-3">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-12 w-full" />)}</div>}>
         <DiscountsTabs />
       </Suspense>
@@ -63,6 +68,7 @@ export default function DiscountsPage() {
 }
 
 function DiscountsTabs() {
+  const { t } = useI18n();
   const searchParams = useSearchParams();
   const router = useRouter();
   const [tab, setTab] = useState(searchParams.get("tab") === "rules" ? "rules" : "assigned");
@@ -80,8 +86,8 @@ function DiscountsTabs() {
   return (
     <Tabs value={tab} onValueChange={change} className="flex flex-col gap-4">
       <TabsList>
-        <TabsTrigger value="assigned">Assigned Discounts</TabsTrigger>
-        <TabsTrigger value="rules">Discount Rules</TabsTrigger>
+        <TabsTrigger value="assigned">{t("discounts.tabAssigned")}</TabsTrigger>
+        <TabsTrigger value="rules">{t("discounts.tabRules")}</TabsTrigger>
       </TabsList>
       <TabsContent value="assigned"><AssignedDiscountsTab /></TabsContent>
       <TabsContent value="rules"><DiscountRulesTab /></TabsContent>
@@ -91,6 +97,7 @@ function DiscountsTabs() {
 
 function AssignedDiscountsTab() {
   const { money } = useCurrency();
+  const { t } = useI18n();
   const [rows, setRows] = useState<AssignedDiscountRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -131,26 +138,26 @@ function AssignedDiscountsTab() {
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle>Assigned Discounts</CardTitle>
+        <CardTitle>{t("discounts.tabAssigned")}</CardTitle>
         <Button size="sm" onClick={() => setAssignOpen(true)}>
-          <Plus className="size-4 mr-1" />Assign Student Discount
+          <Plus className="size-4 mr-1" />{t("discounts.assignButton")}
         </Button>
       </CardHeader>
       <CardContent>
         {error && <p className="text-destructive text-sm mb-3" role="alert">{error}</p>}
         {rows.length === 0 ? (
-          <div className="text-center py-12"><p className="text-sm text-muted-foreground">No discounts assigned yet</p></div>
+          <div className="text-center py-12"><p className="text-sm text-muted-foreground">{t("discounts.noneAssigned")}</p></div>
         ) : (
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Student &amp; Grade</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead>Value</TableHead>
-                <TableHead>Notes</TableHead>
-                <TableHead>Academic Year</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead>{t("discounts.colStudentGrade")}</TableHead>
+                <TableHead>{t("discounts.colCategory")}</TableHead>
+                <TableHead>{t("discounts.colValue")}</TableHead>
+                <TableHead>{t("discounts.colNotes")}</TableHead>
+                <TableHead>{t("discounts.colAcademicYear")}</TableHead>
+                <TableHead>{t("discounts.colStatus")}</TableHead>
+                <TableHead className="text-right">{t("discounts.colActions")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -199,7 +206,7 @@ function AssignedDiscountsTab() {
                         disabled={acting !== ""}
                         onClick={() => act(r, "approve")}
                       >
-                        {acting === `approve:${r.id}` ? "Approving..." : "Approve"}
+                        {acting === `approve:${r.id}` ? t("discounts.approving") : t("discounts.approve")}
                       </Button>
                     )}
                     {r.actions.includes("reject") && (
@@ -210,7 +217,7 @@ function AssignedDiscountsTab() {
                         disabled={acting !== ""}
                         onClick={() => act(r, "reject")}
                       >
-                        {acting === `reject:${r.id}` ? "Rejecting..." : "Reject"}
+                        {acting === `reject:${r.id}` ? t("discounts.rejecting") : t("discounts.reject")}
                       </Button>
                     )}
                   </TableCell>
@@ -227,6 +234,7 @@ function AssignedDiscountsTab() {
 
 function DiscountRulesTab() {
   const { money } = useCurrency();
+  const { t } = useI18n();
   const [rules, setRules] = useState<DiscountRuleRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -250,7 +258,7 @@ function DiscountRulesTab() {
   useEffect(() => { load(); }, [load]);
 
   async function remove(row: DiscountRuleRow) {
-    if (!confirm(`Delete rule "${row.name}"?`)) return;
+    if (!confirm(t("discounts.confirmDelete", { name: row.name }))) return;
     const path = row.source === "SIBLING_RULE"
       ? `/finance/sibling-discount-rules/${row.id}`
       : `/finance/discounts/topper-rules/${row.id}`;
@@ -282,7 +290,7 @@ function DiscountRulesTab() {
         "/finance/discounts/topper-rules/compute",
         { method: "POST" },
       );
-      setNotice(`${res.examName}: awarded ${res.awarded}, skipped ${res.skipped} (already awarded)`);
+      setNotice(t("discounts.computeNotice", { exam: res.examName, awarded: String(res.awarded), skipped: String(res.skipped) }));
     } catch (e) {
       if (e instanceof ApiError) setError(e.message);
     } finally {
@@ -295,14 +303,14 @@ function DiscountRulesTab() {
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle>Discount Rules</CardTitle>
+        <CardTitle>{t("discounts.tabRules")}</CardTitle>
         <div className="flex items-center gap-2">
-          <Button size="sm" variant="outline" onClick={() => setGroupsOpen(true)}>Sibling Groups…</Button>
+          <Button size="sm" variant="outline" onClick={() => setGroupsOpen(true)}>{t("discounts.groupsButton")}</Button>
           <Button size="sm" variant="outline" onClick={runCompute} disabled={computing}>
-            {computing ? "Computing..." : "Run Topper Compute"}
+            {computing ? t("discounts.computing") : t("discounts.computeButton")}
           </Button>
           <Button size="sm" onClick={() => setTemplateOpen(true)}>
-            <Plus className="size-4 mr-1" />Create Rule Template
+            <Plus className="size-4 mr-1" />{t("discounts.templateButton")}
           </Button>
         </div>
       </CardHeader>
@@ -310,17 +318,17 @@ function DiscountRulesTab() {
         {error && <p className="text-destructive text-sm mb-3" role="alert">{error}</p>}
         {notice && <p className="text-sm mb-3">{notice}</p>}
         {rules.length === 0 ? (
-          <div className="text-center py-12"><p className="text-sm text-muted-foreground">No rule templates yet</p></div>
+          <div className="text-center py-12"><p className="text-sm text-muted-foreground">{t("discounts.noneRules")}</p></div>
         ) : (
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Rule Name</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead>Value Type</TableHead>
-                <TableHead>Value</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead>{t("discounts.colRuleName")}</TableHead>
+                <TableHead>{t("discounts.colCategory")}</TableHead>
+                <TableHead>{t("discounts.colValueType")}</TableHead>
+                <TableHead>{t("discounts.colValue")}</TableHead>
+                <TableHead>{t("discounts.colDescription")}</TableHead>
+                <TableHead className="text-right">{t("discounts.colActions")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -328,12 +336,12 @@ function DiscountRulesTab() {
                 <TableRow key={`${r.source}:${r.id}`}>
                   <TableCell className="font-medium">
                     {r.name}
-                    {!r.isActive && <Badge variant="secondary" className="ml-2">Inactive</Badge>}
+                    {!r.isActive && <Badge variant="secondary" className="ml-2">{t("discounts.statusInactive")}</Badge>}
                   </TableCell>
                   <TableCell><CategoryBadge category={r.category} /></TableCell>
                   <TableCell>
                     {r.valueType
-                      ? <Badge variant="outline">{r.valueType === "PERCENTAGE" ? "Percentage" : "Fixed amount"}</Badge>
+                      ? <Badge variant="outline">{r.valueType === "PERCENTAGE" ? t("discounts.typePercentage") : t("discounts.typeFixed")}</Badge>
                       : <span className="text-muted-foreground">—</span>}
                   </TableCell>
                   <TableCell className="tabular-nums">
@@ -348,12 +356,12 @@ function DiscountRulesTab() {
                     {r.source === "TOPPER_RULE" && (
                       <Button variant="ghost" size="sm" onClick={() => toggleTopper(r)}>
                         <Badge variant={r.isActive ? "default" : "secondary"}>
-                          {r.isActive ? "Active" : "Inactive"}
+                          {r.isActive ? t("discounts.statusActive") : t("discounts.statusInactive")}
                         </Badge>
                       </Button>
                     )}
                     {r.source !== "DISCOUNT_TYPE" && (
-                      <Button variant="ghost" size="icon" aria-label={`Delete ${r.name}`} onClick={() => remove(r)}>
+                      <Button variant="ghost" size="icon" aria-label={t("discounts.deleteAria", { name: r.name })} onClick={() => remove(r)}>
                         <Trash2 className="size-4 text-destructive" />
                       </Button>
                     )}

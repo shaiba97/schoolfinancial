@@ -27,28 +27,24 @@ import {
 import { financialApiFetch, ApiError } from "@/lib/api/client";
 import type { Expense, ExpenseCategoryKey } from "@/lib/api/types";
 import { CreateExpenseModal, EXPENSE_CATEGORY_LABEL, categoryKeyForName } from "@/components/finance/create-expense-modal";
+import { formatDate, } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n/locale-provider";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 
 const CATEGORY_KEYS = Object.keys(EXPENSE_CATEGORY_LABEL) as ExpenseCategoryKey[];
 
-function formatDate(iso: string): string {
-  const d = new Date(iso);
-  return Number.isNaN(d.getTime())
-    ? "-"
-    : d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-}
-
 function ExpenseStatusBadge({ status }: { status: Expense["status"] }) {
+  const { t } = useI18n();
   if (status === "pending") {
     return (
-      <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-700">
-        Pending
+      <Badge variant="warning">
+        {t("expenses.statusPending")}
       </Badge>
     );
   }
-  if (status === "rejected") return <Badge variant="destructive">Rejected</Badge>;
-  if (status === "paid") return <Badge>Paid</Badge>;
-  return <Badge>Approved</Badge>;
+  if (status === "rejected") return <Badge variant="destructive">{t("expenses.statusRejected")}</Badge>;
+  if (status === "paid") return <Badge>{t("expenses.statusPaid")}</Badge>;
+  return <Badge>{t("expenses.statusApproved")}</Badge>;
 }
 
 export default function ExpensesPage() {
@@ -60,6 +56,7 @@ export default function ExpensesPage() {
 }
 
 function ExpensesContent() {
+  const { t } = useI18n();
   const router = useRouter();
   const searchParams = useSearchParams();
   const paramTab = searchParams.get("tab") === "approvals" ? "approvals" : "all";
@@ -96,13 +93,13 @@ function ExpensesContent() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Expenses</h1>
+      <h1 className="text-2xl font-bold">{t("expenses.title")}</h1>
       {error && <p className="text-destructive text-sm" role="alert">{error}</p>}
       <Tabs value={tab} onValueChange={(v) => { if (v) changeTab(v); }} className="space-y-4">
         <TabsList>
-          <TabsTrigger value="all">All Expenses</TabsTrigger>
+          <TabsTrigger value="all">{t("expenses.tabAll")}</TabsTrigger>
           <TabsTrigger value="approvals">
-            Approval Queue{pendingCount > 0 ? ` (${pendingCount})` : ""}
+            {t("expenses.tabApprovals")}{pendingCount > 0 ? t("expenses.approvalCount", { count: String(pendingCount) }) : ""}
           </TabsTrigger>
         </TabsList>
         <TabsContent value="all">
@@ -122,6 +119,7 @@ function ExpensesContent() {
 
 function AllExpensesTab({ expenses, onChanged }: { expenses: Expense[]; onChanged: () => Promise<void> }) {
   const { money } = useCurrency();
+  const { t, locale } = useI18n();
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("ALL");
   const [modalOpen, setModalOpen] = useState(false);
@@ -150,28 +148,28 @@ function AllExpensesTab({ expenses, onChanged }: { expenses: Expense[]; onChange
       setDeleting(null);
       await onChanged();
     } catch (e) {
-      setActionError(e instanceof ApiError ? e.message : "Could not delete the expense.");
+      setActionError(e instanceof ApiError ? e.message : t("expenses.deleteError"));
     }
   }
 
   return (
     <Card>
       <CardHeader className="flex flex-row flex-wrap items-center gap-3 justify-between">
-        <CardTitle>All Expenses</CardTitle>
+        <CardTitle>{t("expenses.tabAll")}</CardTitle>
         <div className="flex flex-wrap items-center gap-2">
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search title, payee, category…"
+            placeholder={t("expenses.searchPlaceholder")}
             className="w-56"
           />
           <Select value={category} onValueChange={(v) => { if (v) setCategory(v); }}>
             <SelectTrigger className="w-52">
-              <SelectValue placeholder="All categories" />
+              <SelectValue placeholder={t("expenses.allCategories")} />
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
-                <SelectItem value="ALL">All categories</SelectItem>
+                <SelectItem value="ALL">{t("expenses.allCategories")}</SelectItem>
                 {CATEGORY_KEYS.map((c) => (
                   <SelectItem key={c} value={c}>{EXPENSE_CATEGORY_LABEL[c]}</SelectItem>
                 ))}
@@ -179,7 +177,7 @@ function AllExpensesTab({ expenses, onChanged }: { expenses: Expense[]; onChange
             </SelectContent>
           </Select>
           <Button size="sm" onClick={() => { setEditing(null); setModalOpen(true); }}>
-            <Plus className="h-4 w-4 mr-1" />Record Expense
+            <Plus className="h-4 w-4 mr-1" />{t("expenses.recordButton")}
           </Button>
         </div>
       </CardHeader>
@@ -188,19 +186,19 @@ function AllExpensesTab({ expenses, onChanged }: { expenses: Expense[]; onChange
         {filtered.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-sm text-muted-foreground">
-              {expenses.length === 0 ? "No expenses recorded" : "No expenses match the current filters"}
+              {expenses.length === 0 ? t("expenses.none") : t("expenses.noneMatching")}
             </p>
           </div>
         ) : (
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Expense Title &amp; Payee</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead>Amount</TableHead>
-                <TableHead>Expense Date</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead>{t("expenses.colTitlePayee")}</TableHead>
+                <TableHead>{t("expenses.colCategory")}</TableHead>
+                <TableHead>{t("expenses.colAmount")}</TableHead>
+                <TableHead>{t("expenses.colIncurredAt")}</TableHead>
+                <TableHead>{t("expenses.colStatus")}</TableHead>
+                <TableHead className="text-right">{t("expenses.colActions")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -212,16 +210,16 @@ function AllExpensesTab({ expenses, onChanged }: { expenses: Expense[]; onChange
                   </TableCell>
                   <TableCell><Badge variant="outline">{exp.categoryName}</Badge></TableCell>
                   <TableCell className="tabular-nums">{money(exp.amount, exp.currencyCode)}</TableCell>
-                  <TableCell>{formatDate(exp.incurredAt)}</TableCell>
+                  <TableCell>{formatDate(exp.incurredAt, locale)}</TableCell>
                   <TableCell><ExpenseStatusBadge status={exp.status} /></TableCell>
                   <TableCell className="text-right">
                     <div className="inline-flex items-center gap-1">
                       <Button
                         variant="ghost"
                         size="icon"
-                        aria-label={`Edit ${exp.title}`}
+                        aria-label={t("expenses.editAria", { title: exp.title })}
                         disabled={exp.status !== "pending"}
-                        title={exp.status !== "pending" ? "Only pending expenses can be edited" : "Edit"}
+                        title={exp.status !== "pending" ? t("expenses.onlyPendingEdit") : t("expenses.titleEdit")}
                         onClick={() => { setEditing(exp); setModalOpen(true); }}
                       >
                         <Pencil className="h-4 w-4" />
@@ -229,9 +227,9 @@ function AllExpensesTab({ expenses, onChanged }: { expenses: Expense[]; onChange
                       <Button
                         variant="ghost"
                         size="icon"
-                        aria-label={`Delete ${exp.title}`}
+                        aria-label={t("expenses.deleteAria", { title: exp.title })}
                         disabled={exp.status !== "pending"}
-                        title={exp.status !== "pending" ? "Only pending expenses can be deleted" : "Delete"}
+                        title={exp.status !== "pending" ? t("expenses.onlyPendingDelete") : t("expenses.titleDelete")}
                         onClick={() => setDeleting(exp)}
                       >
                         <Trash2 className="h-4 w-4" />
@@ -255,15 +253,14 @@ function AllExpensesTab({ expenses, onChanged }: { expenses: Expense[]; onChange
       <AlertDialog open={!!deleting} onOpenChange={(open) => { if (!open) setDeleting(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete this expense?</AlertDialogTitle>
+            <AlertDialogTitle>{t("expenses.deleteTitle")}</AlertDialogTitle>
             <AlertDialogDescription>
-              {deleting ? `“${deleting.title}” (${deleting.vendor}) will be permanently removed.` : ""}
-              {" "}Only pending expenses can be deleted.
+              {deleting ? t("expenses.deleteNote", { title: deleting.title, vendor: deleting.vendor }) : ""}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete}>Delete</AlertDialogAction>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete}>{t("expenses.delete")}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -273,6 +270,7 @@ function AllExpensesTab({ expenses, onChanged }: { expenses: Expense[]; onChange
 
 function ApprovalQueueTab({ expenses, onChanged }: { expenses: Expense[]; onChanged: () => Promise<void> }) {
   const { money } = useCurrency();
+  const { t, locale } = useI18n();
   const [rejecting, setRejecting] = useState<Expense | null>(null);
   const [reason, setReason] = useState("");
   const [working, setWorking] = useState(false);
@@ -286,7 +284,7 @@ function ApprovalQueueTab({ expenses, onChanged }: { expenses: Expense[]; onChan
       await financialApiFetch(`/finance/expenses/${id}/approve`, { method: "POST", body: "{}" });
       await onChanged();
     } catch (e) {
-      setActionError(e instanceof ApiError ? e.message : "Could not approve the expense.");
+      setActionError(e instanceof ApiError ? e.message : t("expenses.approveError"));
     }
   }
 
@@ -301,7 +299,7 @@ function ApprovalQueueTab({ expenses, onChanged }: { expenses: Expense[]; onChan
       setRejecting(null); setReason("");
       await onChanged();
     } catch (e) {
-      setActionError(e instanceof ApiError ? e.message : "Could not reject the expense.");
+      setActionError(e instanceof ApiError ? e.message : t("expenses.rejectError"));
     } finally {
       setWorking(false);
     }
@@ -309,21 +307,21 @@ function ApprovalQueueTab({ expenses, onChanged }: { expenses: Expense[]; onChan
 
   return (
     <Card>
-      <CardHeader><CardTitle>Approval Queue</CardTitle></CardHeader>
+      <CardHeader><CardTitle>{t("expenses.approvalCard")}</CardTitle></CardHeader>
       <CardContent>
         {actionError && <p className="text-destructive text-sm mb-3" role="alert">{actionError}</p>}
         {pending.length === 0 ? (
-          <div className="text-center py-12"><p className="text-sm text-muted-foreground">No pending approvals</p></div>
+          <div className="text-center py-12"><p className="text-sm text-muted-foreground">{t("expenses.nonePending")}</p></div>
         ) : (
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Title / Reason</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead>Payee</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Amount</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead>{t("expenses.colTitleReason")}</TableHead>
+                <TableHead>{t("expenses.colCategory")}</TableHead>
+                <TableHead>{t("expenses.colPayee")}</TableHead>
+                <TableHead>{t("expenses.colDate")}</TableHead>
+                <TableHead>{t("expenses.colAmount")}</TableHead>
+                <TableHead className="text-right">{t("expenses.colActions")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -332,11 +330,11 @@ function ApprovalQueueTab({ expenses, onChanged }: { expenses: Expense[]; onChan
                   <TableCell className="font-medium max-w-xs truncate">{exp.title || "—"}</TableCell>
                   <TableCell><Badge variant="outline">{exp.categoryName}</Badge></TableCell>
                   <TableCell className="text-muted-foreground max-w-xs truncate">{exp.vendor || "—"}</TableCell>
-                  <TableCell>{formatDate(exp.incurredAt)}</TableCell>
+                  <TableCell>{formatDate(exp.incurredAt, locale)}</TableCell>
                   <TableCell className="tabular-nums">{money(exp.amount, exp.currencyCode)}</TableCell>
                   <TableCell className="text-right">
-                    <Button size="sm" variant="outline" onClick={() => approve(exp.id)}>Approve</Button>
-                    <Button size="sm" variant="destructive" className="ml-2" onClick={() => { setRejecting(exp); setReason(""); }}>Reject</Button>
+                    <Button size="sm" variant="outline" onClick={() => approve(exp.id)}>{t("expenses.approve")}</Button>
+                    <Button size="sm" variant="destructive" className="ml-2" onClick={() => { setRejecting(exp); setReason(""); }}>{t("expenses.reject")}</Button>
                   </TableCell>
                 </TableRow>
               ))}
@@ -348,22 +346,22 @@ function ApprovalQueueTab({ expenses, onChanged }: { expenses: Expense[]; onChan
       <Dialog open={!!rejecting} onOpenChange={(open) => { if (!open) { setRejecting(null); setReason(""); } }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Reject expense{rejecting ? ` — ${rejecting.title}` : ""}</DialogTitle>
+            <DialogTitle>{rejecting ? t("expenses.rejectTitle", { title: rejecting.title }) : t("expenses.reject")}</DialogTitle>
           </DialogHeader>
           <div className="flex flex-col gap-2">
-            <Label htmlFor="reject-reason">Rejection reason (required)</Label>
+            <Label htmlFor="reject-reason">{t("expenses.reasonRequired")}</Label>
             <Textarea
               id="reject-reason"
               rows={3}
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              placeholder="Why is this expense being rejected?"
+              placeholder={t("expenses.reasonPlaceholder")}
             />
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setRejecting(null); setReason(""); }}>Cancel</Button>
+            <Button variant="outline" onClick={() => { setRejecting(null); setReason(""); }}>{t("common.cancel")}</Button>
             <Button variant="destructive" onClick={confirmReject} disabled={working || reason.trim() === ""}>
-              {working ? "Rejecting..." : "Reject Expense"}
+              {working ? t("expenses.rejecting") : t("expenses.rejectExpense")}
             </Button>
           </DialogFooter>
         </DialogContent>
