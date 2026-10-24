@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { LanguageToggle } from "@/components/portal/language-toggle";
 import { useI18n } from "@/lib/i18n/locale-provider";
 import type { MessageKey } from "@/lib/i18n/locale-provider";
 import {
@@ -34,9 +35,10 @@ export function Sidebar() {
   const { t } = useI18n();
 
   return (
-    <aside className="hidden lg:flex lg:flex-col lg:w-64 lg:fixed lg:inset-y-0 border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
-      <div className="flex h-16 items-center border-b border-sidebar-border px-6">
+    <aside className="hidden lg:flex lg:flex-col lg:w-64 lg:fixed lg:inset-y-0 border-e border-sidebar-border bg-sidebar text-sidebar-foreground">
+      <div className="flex h-16 items-center justify-between gap-2 border-b border-sidebar-border px-5">
         <h1 className="text-lg font-semibold">{t("portal.name")}</h1>
+        <LanguageToggle className="border-transparent bg-transparent text-sidebar-foreground hover:bg-sidebar-hover" />
       </div>
       <nav className="flex-1 space-y-1 p-3 overflow-y-auto" aria-label={t("nav.navLabel")}>
         {navItems.map((item) => {
