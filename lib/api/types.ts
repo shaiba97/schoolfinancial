@@ -5,6 +5,13 @@ export interface FeeCategory {
   active: boolean;
 }
 
+export type AuthMe = {
+  id: string;
+  fullName: string;
+  phone?: string | null;
+  avatarUrl?: string | null;
+};
+
 export interface FeeInstallment {
   installmentNo: number;
   amount: number;
