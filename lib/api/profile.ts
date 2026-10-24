@@ -15,7 +15,7 @@ function toAuthMe({ user }: AuthMeResponse): AuthMe {
   return {
     id: user.id,
     fullName: [user.firstName, user.lastName].filter(Boolean).join(" ").trim(),
-    phone: user.phone ?? null,
+    phone: user.phone?.trim() ? user.phone.trim() : null,
     avatarUrl: user.avatarUrl ?? null,
   };
 }

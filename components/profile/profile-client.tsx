@@ -131,12 +131,12 @@ export function ProfileClient() {
             <AvatarCircle name={displayName} photoUrl={me.avatarUrl} />
             <div className="min-w-0 flex-1">
               <h1 className="truncate text-2xl font-semibold tracking-tight">{displayName}</h1>
-              {me.phone && (
+              {me.phone ? (
                 <p className="mt-1 inline-flex items-center gap-1.5 text-sm text-muted-foreground">
                   <Phone size={13} aria-hidden />
                   <span dir="ltr">{me.phone}</span>
                 </p>
-              )}
+              ) : null}
             </div>
             <div className="flex shrink-0 flex-wrap gap-2">
               <Button type="button" variant="outline" size="sm" onClick={() => setEditOpen(true)}>
