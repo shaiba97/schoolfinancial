@@ -13,6 +13,8 @@ import {
   Select, SelectTrigger, SelectValue, SelectContent, SelectGroup, SelectItem,
 } from "@/components/ui/select";
 import { financialApiFetch, ApiError } from "@/lib/api/client";
+import { useI18n } from "@/lib/i18n/locale-provider";
+import type { MessageKey } from "@/lib/i18n/locale-provider";
 import type { Expense, ExpenseCategoryKey } from "@/lib/api/types";
 import { ChevronsUpDown } from "lucide-react";
 
@@ -26,6 +28,16 @@ export const EXPENSE_CATEGORY_LABEL: Record<ExpenseCategoryKey, string> = {
 };
 
 const CATEGORY_KEYS = Object.keys(EXPENSE_CATEGORY_LABEL) as ExpenseCategoryKey[];
+
+/** Localized display names (backend still receives the canonical English labels). */
+const EXPENSE_CATEGORY_KEYS: Record<ExpenseCategoryKey, MessageKey> = {
+  MAINTENANCE: "expModal.catMAINTENANCE",
+  SALARIES: "expModal.catSALARIES",
+  UTILITIES: "expModal.catUTILITIES",
+  SUPPLIES: "expModal.catSUPPLIES",
+  STUDENT_PAYOUT: "expModal.catSTUDENT_PAYOUT",
+  OTHER: "expModal.catOTHER",
+};
 
 /** Map a stored category name back to its key (case/punctuation-insensitive). */
 export function categoryKeyForName(name: string): ExpenseCategoryKey {
@@ -50,6 +62,7 @@ interface CreateExpenseModalProps {
 const today = () => new Date().toISOString().slice(0, 10);
 
 export function CreateExpenseModal({ open, onOpenChange, onSaved, initial }: CreateExpenseModalProps) {
+  const { t } = useI18n();
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState<ExpenseCategoryKey>("MAINTENANCE");
   const [amount, setAmount] = useState("");
@@ -117,7 +130,7 @@ export function CreateExpenseModal({ open, onOpenChange, onSaved, initial }: Cre
       onOpenChange(false);
     } catch (e) {
       if (e instanceof ApiError) setError(e.message);
-      else setError("Could not save the expense.");
+      else setError(t("expModal.saveError"));
     } finally {
       setSaving(false);
     }
@@ -127,24 +140,24 @@ export function CreateExpenseModal({ open, onOpenChange, onSaved, initial }: Cre
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{initial ? "Edit Expense" : "Record Expense"}</DialogTitle>
+          <DialogTitle>{initial ? t("expModal.editTitle") : t("expModal.createTitle")}</DialogTitle>
         </DialogHeader>
         <div className="flex flex-col gap-4">
           {error && <p className="text-destructive text-sm" role="alert">{error}</p>}
 
           <div className="flex flex-col gap-2">
-            <Label htmlFor="exp-title">Title / Description</Label>
+            <Label htmlFor="exp-title">{t("expModal.colTitle")}</Label>
             <Input
               id="exp-title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="Generator Fuel Purchase"
+              placeholder={t("expModal.titlePlaceholder")}
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-2">
-              <Label htmlFor="exp-category">Category</Label>
+              <Label htmlFor="exp-category">{t("expModal.colCategory")}</Label>
               <Select value={category} onValueChange={(v) => { if (v) setCategory(v as ExpenseCategoryKey); }}>
                 <SelectTrigger id="exp-category" className="w-full">
                   <SelectValue />
@@ -152,14 +165,14 @@ export function CreateExpenseModal({ open, onOpenChange, onSaved, initial }: Cre
                 <SelectContent>
                   <SelectGroup>
                     {CATEGORY_KEYS.map((c) => (
-                      <SelectItem key={c} value={c}>{EXPENSE_CATEGORY_LABEL[c]}</SelectItem>
+                      <SelectItem key={c} value={c}>{t(EXPENSE_CATEGORY_KEYS[c])}</SelectItem>
                     ))}
                   </SelectGroup>
                 </SelectContent>
               </Select>
             </div>
             <div className="flex flex-col gap-2">
-              <Label htmlFor="exp-amount">Amount</Label>
+              <Label htmlFor="exp-amount">{t("expModal.colAmount")}</Label>
               <Input
                 id="exp-amount"
                 type="number"
@@ -173,18 +186,18 @@ export function CreateExpenseModal({ open, onOpenChange, onSaved, initial }: Cre
           </div>
 
           <div className="flex flex-col gap-2">
-            <Label htmlFor="exp-vendor">Vendor / Payee Name</Label>
+            <Label htmlFor="exp-vendor">{t("expModal.vendor")}</Label>
             <Input
               id="exp-vendor"
               value={vendor}
               onChange={(e) => setVendor(e.target.value)}
-              placeholder="Nile Fuel Co."
+              placeholder={t("expModal.vendorPlaceholder")}
             />
           </div>
 
           {category === "STUDENT_PAYOUT" && (
             <div className="flex flex-col gap-2">
-              <Label>Pick student as payee (optional)</Label>
+              <Label>{t("expModal.pickStudent")}</Label>
               <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
                 <PopoverTrigger
                   render={
@@ -195,19 +208,19 @@ export function CreateExpenseModal({ open, onOpenChange, onSaved, initial }: Cre
                     />
                   }
                 >
-                  <span className="truncate text-muted-foreground">Type student name or roll number…</span>
+                  <span className="truncate text-muted-foreground">{t("expModal.searchPlaceholder")}</span>
                   <ChevronsUpDown />
                 </PopoverTrigger>
                 <PopoverContent className="w-[--anchor-width] p-0" align="start">
                   <Command shouldFilter={false}>
                     <CommandInput
-                      placeholder="Type student name or roll number…"
+                      placeholder={t("expModal.searchPlaceholder")}
                       value={query}
                       onValueChange={(v) => { setQuery(v); search(v); }}
                     />
                     <CommandList>
                       <CommandEmpty>
-                        {query.trim() ? `No students found for “${query.trim()}”.` : "Type to search students."}
+                        {query.trim() ? t("expModal.noResults", { query: query.trim() }) : t("expModal.typeToSearch")}
                       </CommandEmpty>
                       <CommandGroup>
                         {candidates.map((c) => (
@@ -222,7 +235,7 @@ export function CreateExpenseModal({ open, onOpenChange, onSaved, initial }: Cre
                             <span className="min-w-0 flex-1 truncate">
                               {c.displayLabel}
                               {c.roleNumber && (
-                                <span className="ml-2 text-xs text-muted-foreground tabular-nums">
+                                <span className="ml-2 rtl:ml-0 rtl:mr-2 text-xs text-muted-foreground tabular-nums">
                                   #{c.roleNumber}
                                 </span>
                               )}
@@ -238,7 +251,7 @@ export function CreateExpenseModal({ open, onOpenChange, onSaved, initial }: Cre
           )}
 
           <div className="flex flex-col gap-2">
-            <Label htmlFor="exp-date">Expense Date</Label>
+            <Label htmlFor="exp-date">{t("expModal.colDate")}</Label>
             <Input
               id="exp-date"
               type="date"
@@ -248,7 +261,7 @@ export function CreateExpenseModal({ open, onOpenChange, onSaved, initial }: Cre
           </div>
 
           <Button onClick={handleSave} disabled={!canSave}>
-            {saving ? "Saving..." : initial ? "Save Changes" : "Record Expense"}
+            {saving ? t("expModal.saving") : initial ? t("expModal.saveChanges") : t("expModal.save")}
           </Button>
         </div>
       </DialogContent>

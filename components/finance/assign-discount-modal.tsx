@@ -15,6 +15,8 @@ import {
 } from "@/components/ui/select";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { financialApiFetch, ApiError } from "@/lib/api/client";
+import { useI18n } from "@/lib/i18n/locale-provider";
+import type { MessageKey } from "@/lib/i18n/locale-provider";
 import type { AcademicYear, DeductionValueType, DiscountRuleRow } from "@/lib/api/types";
 import { ChevronsUpDown } from "lucide-react";
 
@@ -33,10 +35,10 @@ interface AssignDiscountModalProps {
   onAssigned: () => void;
 }
 
-const CATEGORY_LABEL: Record<ModalCategory, string> = {
-  SIBLING: "Sibling / Family",
-  TOPPER: "Class Topper",
-  SPECIAL_DISCRETION: "Special Family Condition (Verbal Agreement)",
+const CATEGORY_KEYS: Record<ModalCategory, MessageKey> = {
+  SIBLING: "asgDisc.catSibling",
+  TOPPER: "asgDisc.catTopper",
+  SPECIAL_DISCRETION: "asgDisc.catSpecial",
 };
 
 function templatesFor(category: ModalCategory, templates: DiscountRuleRow[]) {
@@ -46,6 +48,7 @@ function templatesFor(category: ModalCategory, templates: DiscountRuleRow[]) {
 }
 
 export function AssignDiscountModal({ open, onOpenChange, onAssigned }: AssignDiscountModalProps) {
+  const { t } = useI18n();
   const [studentId, setStudentId] = useState("");
   const [studentLabel, setStudentLabel] = useState("");
   const [query, setQuery] = useState("");
@@ -148,7 +151,7 @@ export function AssignDiscountModal({ open, onOpenChange, onAssigned }: AssignDi
       onOpenChange(false);
     } catch (e) {
       if (e instanceof ApiError) setError(e.message);
-      else setError("Could not assign the discount.");
+      else setError(t("asgDisc.assignError"));
     } finally {
       setSaving(false);
     }
@@ -159,17 +162,17 @@ export function AssignDiscountModal({ open, onOpenChange, onAssigned }: AssignDi
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
-        <DialogHeader><DialogTitle>Assign Student Discount</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{t("asgDisc.title")}</DialogTitle></DialogHeader>
         <div className="flex flex-col gap-4">
           {error && <p className="text-destructive text-sm" role="alert">{error}</p>}
 
           <div className="flex flex-col gap-2">
-            <Label htmlFor="assign-student">Student</Label>
+            <Label htmlFor="assign-student">{t("asgDisc.student")}</Label>
             {studentId ? (
               <div className="flex items-center justify-between rounded-md border px-3 py-2 text-sm">
                 <span className="font-medium truncate">{studentLabel}</span>
                 <Button type="button" size="sm" variant="ghost" onClick={() => { setStudentId(""); setStudentLabel(""); }}>
-                  Change
+                  {t("asgDisc.change")}
                 </Button>
               </div>
             ) : (
@@ -184,19 +187,19 @@ export function AssignDiscountModal({ open, onOpenChange, onAssigned }: AssignDi
                     />
                   }
                 >
-                  <span className="truncate text-muted-foreground">Type student name or roll number…</span>
+                  <span className="truncate text-muted-foreground">{t("asgDisc.searchPlaceholder")}</span>
                   <ChevronsUpDown />
                 </PopoverTrigger>
                 <PopoverContent className="w-[--anchor-width] p-0" align="start">
                   <Command shouldFilter={false}>
                     <CommandInput
-                      placeholder="Type student name or roll number…"
+                      placeholder={t("asgDisc.searchPlaceholder")}
                       value={query}
                       onValueChange={(v) => { setQuery(v); search(v); }}
                     />
                     <CommandList>
                       <CommandEmpty>
-                        {query.trim() ? `No students found for “${query.trim()}”.` : "Type to search students."}
+                        {query.trim() ? t("asgDisc.noResults", { query: query.trim() }) : t("asgDisc.typeToSearch")}
                       </CommandEmpty>
                       <CommandGroup>
                         {candidates.map((c) => (
@@ -204,7 +207,7 @@ export function AssignDiscountModal({ open, onOpenChange, onAssigned }: AssignDi
                             <span className="min-w-0 flex-1 truncate">
                               {c.displayLabel}
                               {c.roleNumber && (
-                                <span className="ml-2 text-xs text-muted-foreground tabular-nums">
+                                <span className="ml-2 rtl:ml-0 rtl:mr-2 text-xs text-muted-foreground tabular-nums">
                                   #{c.roleNumber}
                                 </span>
                               )}
@@ -220,15 +223,15 @@ export function AssignDiscountModal({ open, onOpenChange, onAssigned }: AssignDi
           </div>
 
           <div className="flex flex-col gap-2">
-            <Label htmlFor="assign-category">Category</Label>
+            <Label htmlFor="assign-category">{t("asgDisc.category")}</Label>
             <Select value={category} onValueChange={(v) => { if (v) { setCategory(v as ModalCategory); setTemplateId(""); setError(""); } }}>
               <SelectTrigger id="assign-category" className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
-                  {(Object.keys(CATEGORY_LABEL) as ModalCategory[]).map((c) => (
-                    <SelectItem key={c} value={c}>{CATEGORY_LABEL[c]}</SelectItem>
+                  {(Object.keys(CATEGORY_KEYS) as ModalCategory[]).map((c) => (
+                    <SelectItem key={c} value={c}>{t(CATEGORY_KEYS[c])}</SelectItem>
                   ))}
                 </SelectGroup>
               </SelectContent>
@@ -238,22 +241,22 @@ export function AssignDiscountModal({ open, onOpenChange, onAssigned }: AssignDi
           {visibleTemplates.length > 0 && (
             <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between">
-                <Label htmlFor="assign-template">Rule template (optional)</Label>
+                <Label htmlFor="assign-template">{t("asgDisc.template")}</Label>
                 {templateId && (
                   <Button type="button" size="sm" variant="ghost" onClick={() => setTemplateId("")}>
-                    Clear
+                    {t("asgDisc.clear")}
                   </Button>
                 )}
               </div>
               <Select value={templateId} onValueChange={(v) => { if (v) pickTemplate(v); }}>
                 <SelectTrigger id="assign-template" className="w-full">
-                  <SelectValue placeholder="No template — enter manually" />
+                  <SelectValue placeholder={t("asgDisc.templatePlaceholder")} />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectGroup>
-                    {visibleTemplates.map((t) => (
-                      <SelectItem key={t.id} value={t.id}>
-                        {t.name}{t.valueType && t.value != null ? ` — ${t.valueType === "PERCENTAGE" ? `${t.value}%` : t.value}` : ""}
+                    {visibleTemplates.map((tp) => (
+                      <SelectItem key={tp.id} value={tp.id}>
+                        {tp.name}{tp.valueType && tp.value != null ? ` — ${tp.valueType === "PERCENTAGE" ? `${tp.value}%` : tp.value}` : ""}
                       </SelectItem>
                     ))}
                   </SelectGroup>
@@ -264,18 +267,18 @@ export function AssignDiscountModal({ open, onOpenChange, onAssigned }: AssignDi
 
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-2">
-              <Label>Value type</Label>
+              <Label>{t("asgDisc.valueType")}</Label>
               <ToggleGroup
                 value={[valueType]}
                 onValueChange={(v) => { const last = v[v.length - 1]; if (last) setValueType(last as DeductionValueType); }}
                 variant="outline"
               >
-                <ToggleGroupItem value="PERCENTAGE">% Percentage</ToggleGroupItem>
-                <ToggleGroupItem value="FIXED_AMOUNT">$ Fixed</ToggleGroupItem>
+                <ToggleGroupItem value="PERCENTAGE">{t("asgDisc.typePercentage")}</ToggleGroupItem>
+                <ToggleGroupItem value="FIXED_AMOUNT">{t("asgDisc.typeFixed")}</ToggleGroupItem>
               </ToggleGroup>
             </div>
             <div className="flex flex-col gap-2">
-              <Label htmlFor="assign-value">Value</Label>
+              <Label htmlFor="assign-value">{t("asgDisc.value")}</Label>
               <Input
                 id="assign-value"
                 type="number"
@@ -289,38 +292,38 @@ export function AssignDiscountModal({ open, onOpenChange, onAssigned }: AssignDi
 
           {needsNotes && (
             <div className="flex flex-col gap-2">
-              <Label htmlFor="assign-notes">Verbal agreement notes (required)</Label>
+              <Label htmlFor="assign-notes">{t("asgDisc.notes")}</Label>
               <Textarea
                 id="assign-notes"
                 rows={3}
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                placeholder="Concession approved by Principal during parent consultation on Oct 14"
+                placeholder={t("asgDisc.notesPlaceholder")}
               />
             </div>
           )}
 
           <div className="flex flex-col gap-2">
-            <Label htmlFor="assign-year">Academic Year</Label>
+            <Label htmlFor="assign-year">{t("asgDisc.year")}</Label>
             <Select value={yearId} onValueChange={(v) => { if (v) setYearId(v); }}>
               <SelectTrigger id="assign-year" className="w-full">
-                <SelectValue placeholder="Select year" />
+                <SelectValue placeholder={t("asgDisc.yearPlaceholder")} />
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
                   {years.map((y) => (
                     <SelectItem key={y.id} value={y.id}>
-                      {y.name}{y.isCurrent ? " (active)" : ""}
+                      {y.name}{y.isCurrent ? ` ${t("asgDisc.yearActive")}` : ""}
                     </SelectItem>
                   ))}
                 </SelectGroup>
               </SelectContent>
             </Select>
-            <p className="text-xs text-muted-foreground">Assignments apply to the active session.</p>
+            <p className="text-xs text-muted-foreground">{t("asgDisc.sessionNote")}</p>
           </div>
 
           <Button onClick={handleSave} disabled={!canSave}>
-            {saving ? "Assigning..." : "Assign Discount"}
+            {saving ? t("asgDisc.assigning") : t("asgDisc.assign")}
           </Button>
         </div>
       </DialogContent>

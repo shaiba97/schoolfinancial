@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/select";
 import { financialApiFetch, ApiError } from "@/lib/api/client";
 import { useCurrency } from "@/components/portal/currency-provider";
+import { useI18n } from "@/lib/i18n/locale-provider";
 import type { Position } from "@/lib/api/types";
 
 export interface StaffOption {
@@ -37,6 +38,7 @@ interface AssignPositionSalaryModalProps {
 
 export function AssignPositionSalaryModal({ open, onOpenChange, onSaved, positions, initial }: AssignPositionSalaryModalProps) {
   const { currency } = useCurrency();
+  const { t } = useI18n();
   const [positionId, setPositionId] = React.useState("");
   const [title, setTitle] = React.useState("");
   const [staff, setStaff] = React.useState<StaffOptions>({ academic: [], admin: [] });
@@ -63,7 +65,7 @@ export function AssignPositionSalaryModal({ open, onOpenChange, onSaved, positio
       .then((s) => setStaff({ academic: s.academic ?? [], admin: s.admin ?? [] }))
       .catch((e) => {
         setStaff({ academic: [], admin: [] });
-        setStaffError(e instanceof ApiError ? e.message : "Failed to load staff positions.");
+        setStaffError(e instanceof ApiError ? e.message : t("posSal.staffLoadError"));
       });
   }, [open, initial]);
 
@@ -100,7 +102,7 @@ export function AssignPositionSalaryModal({ open, onOpenChange, onSaved, positio
       onOpenChange(false);
     } catch (e) {
       if (e instanceof ApiError) setError(e.message);
-      else setError("Saving failed. Please try again.");
+      else setError(t("posSal.saveError"));
     } finally {
       setSaving(false);
     }
@@ -140,7 +142,7 @@ export function AssignPositionSalaryModal({ open, onOpenChange, onSaved, positio
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>{initial ? "Edit Position Salary" : "Set Position Salary"}</DialogTitle>
+          <DialogTitle>{initial ? t("posSal.editTitle") : t("posSal.createTitle")}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           {error && (
@@ -148,12 +150,12 @@ export function AssignPositionSalaryModal({ open, onOpenChange, onSaved, positio
           )}
           {initial ? (
             <div className="rounded-md bg-muted p-3">
-              <p className="text-sm text-muted-foreground">Position / Role</p>
+              <p className="text-sm text-muted-foreground">{t("posSal.positionRole")}</p>
               <p className="font-medium">{initial.title}</p>
             </div>
           ) : (
             <div className="space-y-2">
-              <Label>Position / Role</Label>
+              <Label>{t("posSal.positionRole")}</Label>
               {staffError && (
                 <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{staffError}</div>
               )}
@@ -164,7 +166,7 @@ export function AssignPositionSalaryModal({ open, onOpenChange, onSaved, positio
                 const p = positions.find((x) => x.id === v);
                 if (p) setAmount(String(p.baseSalary));
               }}>
-                <SelectTrigger><SelectValue placeholder="Select a position..." /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={t("posSal.selectPosition")} /></SelectTrigger>
                 <SelectContent>
                   {activePositions.map((p) => (
                     <SelectItem key={p.id} value={p.id}>{p.title}</SelectItem>
@@ -176,13 +178,13 @@ export function AssignPositionSalaryModal({ open, onOpenChange, onSaved, positio
               </Select>
               {rosterRoles.length > 0 && (
                 <p className="text-xs text-muted-foreground">
-                  From current staff: {rosterRoles.join(", ")}. Picking one creates the position on save.
+                  {t("posSal.rosterNote", { roles: rosterRoles.join(", ") })}
                 </p>
               )}
             </div>
           )}
           <div className="space-y-2">
-            <Label htmlFor="pos-amount">Monthly Base Salary ({currency})</Label>
+            <Label htmlFor="pos-amount">{t("posSal.amountLabel", { currency })}</Label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">{currency}</span>
               <Input
@@ -197,9 +199,9 @@ export function AssignPositionSalaryModal({ open, onOpenChange, onSaved, positio
             </div>
           </div>
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>Cancel</Button>
+            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>{t("common.cancel")}</Button>
             <Button onClick={submit} disabled={!canSave}>
-              {saving ? "Saving…" : "Save Salary"}
+              {saving ? t("common.saving") : t("posSal.saveBtn")}
             </Button>
           </div>
         </div>

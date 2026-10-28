@@ -9,6 +9,7 @@ import {
   Select, SelectTrigger, SelectValue, SelectContent, SelectGroup, SelectItem,
 } from "@/components/ui/select";
 import { financialApiFetch, ApiError } from "@/lib/api/client";
+import { useI18n } from "@/lib/i18n/locale-provider";
 import type { DeductionValueType, DiscountRuleCategory, SiblingRelationType } from "@/lib/api/types";
 
 interface RuleTemplateDialogProps {
@@ -18,6 +19,7 @@ interface RuleTemplateDialogProps {
 }
 
 export function RuleTemplateDialog({ open, onOpenChange, onSaved }: RuleTemplateDialogProps) {
+  const { t } = useI18n();
   const [category, setCategory] = useState<DiscountRuleCategory>("SIBLING");
   const [name, setName] = useState("");
   const [relationType, setRelationType] = useState<SiblingRelationType>("SISTERS_AND_BROTHERS");
@@ -74,7 +76,7 @@ export function RuleTemplateDialog({ open, onOpenChange, onSaved }: RuleTemplate
       onOpenChange(false);
     } catch (e) {
       if (e instanceof ApiError) setError(e.message);
-      else setError("Could not create the rule template.");
+      else setError(t("ruleTpl.saveError"));
     } finally {
       setSaving(false);
     }
@@ -83,55 +85,55 @@ export function RuleTemplateDialog({ open, onOpenChange, onSaved }: RuleTemplate
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
-        <DialogHeader><DialogTitle>Create Rule Template</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{t("ruleTpl.title")}</DialogTitle></DialogHeader>
         <div className="flex flex-col gap-4">
           {error && <p className="text-destructive text-sm" role="alert">{error}</p>}
 
           <div className="flex flex-col gap-2">
-            <Label htmlFor="rt-category">Category</Label>
+            <Label htmlFor="rt-category">{t("ruleTpl.category")}</Label>
             <Select value={category} onValueChange={(v) => { if (v) setCategory(v as DiscountRuleCategory); }}>
               <SelectTrigger id="rt-category" className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
-                  <SelectItem value="SIBLING">Sibling / Family</SelectItem>
-                  <SelectItem value="TOPPER">Class Topper</SelectItem>
-                  <SelectItem value="MANUAL">Manual template</SelectItem>
+                  <SelectItem value="SIBLING">{t("ruleTpl.catSibling")}</SelectItem>
+                  <SelectItem value="TOPPER">{t("ruleTpl.catTopper")}</SelectItem>
+                  <SelectItem value="MANUAL">{t("ruleTpl.catManual")}</SelectItem>
                 </SelectGroup>
               </SelectContent>
             </Select>
           </div>
 
           <div className="flex flex-col gap-2">
-            <Label htmlFor="rt-name">Name</Label>
+            <Label htmlFor="rt-name">{t("ruleTpl.name")}</Label>
             <Input
               id="rt-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder={category === "TOPPER" ? "Topper 10%" : "Rule name"}
+              placeholder={category === "TOPPER" ? t("ruleTpl.nameTopperPlaceholder") : t("ruleTpl.namePlaceholder")}
             />
           </div>
 
           {category === "SIBLING" && (
             <div className="grid grid-cols-2 gap-4">
               <div className="flex flex-col gap-2">
-                <Label htmlFor="rt-rel">Relation</Label>
+                <Label htmlFor="rt-rel">{t("ruleTpl.relation")}</Label>
                 <Select value={relationType} onValueChange={(v) => { if (v) setRelationType(v as SiblingRelationType); }}>
                   <SelectTrigger id="rt-rel" className="w-full">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectGroup>
-                      <SelectItem value="SISTERS">Sisters</SelectItem>
-                      <SelectItem value="BROTHERS">Brothers</SelectItem>
-                      <SelectItem value="SISTERS_AND_BROTHERS">Sisters &amp; Brothers</SelectItem>
+                      <SelectItem value="SISTERS">{t("ruleTpl.relSisters")}</SelectItem>
+                      <SelectItem value="BROTHERS">{t("ruleTpl.relBrothers")}</SelectItem>
+                      <SelectItem value="SISTERS_AND_BROTHERS">{t("ruleTpl.relBoth")}</SelectItem>
                     </SelectGroup>
                   </SelectContent>
                 </Select>
               </div>
               <div className="flex flex-col gap-2">
-                <Label htmlFor="rt-min">Minimum siblings</Label>
+                <Label htmlFor="rt-min">{t("ruleTpl.minSiblings")}</Label>
                 <Input id="rt-min" type="number" min={2} value={minSiblingCount} onChange={(e) => setMinSiblingCount(e.target.value)} />
               </div>
             </div>
@@ -139,34 +141,33 @@ export function RuleTemplateDialog({ open, onOpenChange, onSaved }: RuleTemplate
 
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-2">
-              <Label htmlFor="rt-vt">Type</Label>
+              <Label htmlFor="rt-vt">{t("ruleTpl.type")}</Label>
               <Select value={valueType} onValueChange={(v) => { if (v) setValueType(v as DeductionValueType); }}>
                 <SelectTrigger id="rt-vt" className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectGroup>
-                    <SelectItem value="PERCENTAGE">Percentage</SelectItem>
-                    <SelectItem value="FIXED_AMOUNT">Fixed amount</SelectItem>
+                    <SelectItem value="PERCENTAGE">{t("ruleTpl.typePercentage")}</SelectItem>
+                    <SelectItem value="FIXED_AMOUNT">{t("ruleTpl.typeFixed")}</SelectItem>
                   </SelectGroup>
                 </SelectContent>
               </Select>
             </div>
             <div className="flex flex-col gap-2">
-              <Label htmlFor="rt-val">Value</Label>
+              <Label htmlFor="rt-val">{t("ruleTpl.value")}</Label>
               <Input id="rt-val" type="number" min={0} value={value} onChange={(e) => setValue(e.target.value)} />
             </div>
           </div>
 
           {category === "TOPPER" && (
             <p className="text-xs text-muted-foreground">
-              Applies to the rank-1 student of every class, computed from the most recently published exam.
-              Percentage is taken off the annual fee total.
+              {t("ruleTpl.topperNote")}
             </p>
           )}
 
           <Button onClick={handleSave} disabled={!canSave}>
-            {saving ? "Saving..." : "Save"}
+            {saving ? t("common.saving") : t("ruleTpl.save")}
           </Button>
         </div>
       </DialogContent>
