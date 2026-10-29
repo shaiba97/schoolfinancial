@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "@/components/ui/toast";
 import { LOCALE_STORAGE_KEY, LocaleProvider } from "@/lib/i18n/locale-provider";
 import "./globals.css";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -37,6 +38,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <LocaleProvider>
           <Toaster>{children}</Toaster>
         </LocaleProvider>
+        <SpeedInsights />
       </body>
     </html>
   );
