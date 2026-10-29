@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:3000/api";
+const BACKEND_URL = process.env.BACKEND_URL || "https://schoolbackend-7n8a.onrender.com/api";
 
 type Membership = {
   tenantId: string;
