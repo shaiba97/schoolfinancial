@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const BACKEND_URL = process.env.BACKEND_URL || "https://schoolbackend-7n8a.onrender.com/api";
+const BACKEND_URL = process.env.BACKEND_URL || "https://schoolbackend-gilt.vercel.app/api";
 
 async function proxy(
   req: NextRequest,

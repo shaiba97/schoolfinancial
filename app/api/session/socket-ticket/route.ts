@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 
-const BACKEND_URL = process.env.BACKEND_URL || "https://schoolbackend-7n8a.onrender.com/api";
+const BACKEND_URL = process.env.BACKEND_URL || "https://schoolbackend-gilt.vercel.app/api";
 
 export async function GET() {
   const store = await cookies();

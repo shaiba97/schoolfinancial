@@ -65,7 +65,7 @@ export function useFinanceRealtimeEvent(
         return;
       }
 
-      socket = io(process.env.NEXT_PUBLIC_SOCKET_URL || "https://schoolbackend-7n8a.onrender.com", {
+      socket = io(process.env.NEXT_PUBLIC_SOCKET_URL || "https://schoolbackend-gilt.vercel.app", {
         auth: { token: data.ticket },
         withCredentials: true,
         reconnection: true,

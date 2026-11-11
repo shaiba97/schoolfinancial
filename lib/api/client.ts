@@ -1,5 +1,5 @@
 import { notifyTenantLock } from "@/lib/tenant-lock";
-const BACKEND_URL = process.env.BACKEND_URL || "https://schoolbackend-7n8a.onrender.com/api";
+const BACKEND_URL = process.env.BACKEND_URL || "https://schoolbackend-gilt.vercel.app/api";
 
 export class ApiError extends Error {
   status: number;
